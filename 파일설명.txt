@@ -1,0 +1,5 @@
+disorder : 모든 pathology의 문장읽기
+healthy : 모든 건강환자의 문장읽기
+
+healthy_a , i , u :  건강환자의 모음읽기
+pathology_a, i, u : 
