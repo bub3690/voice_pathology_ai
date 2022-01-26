@@ -1,3 +1,9 @@
 voice_data/
 .ipynb_checkpoints/
 model/checkpoint/*.pt
+cam_images_1.0/
+cam_images_0.9/
+cam_images_0.8/
+cam_a-0.8/
+cam_a-0.9/
+cam_a-1.0/
