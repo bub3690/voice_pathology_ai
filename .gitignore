@@ -7,3 +7,5 @@ cam_images_0.8/
 cam_a-0.8/
 cam_a-0.9/
 cam_a-1.0/
+*.pickle
+checkpoint.zip
