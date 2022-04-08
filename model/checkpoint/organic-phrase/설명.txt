@@ -1,0 +1,1 @@
+wav2vec organic data중 phrase 실시

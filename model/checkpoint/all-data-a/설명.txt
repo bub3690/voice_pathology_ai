@@ -1,0 +1,2 @@
+wav2vec all data
+중 a 실험한것.

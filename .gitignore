@@ -11,3 +11,4 @@ cam_a-1.0/
 checkpoint.zip
 runs/
 checkpoint-*/
+*.pt
