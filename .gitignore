@@ -12,3 +12,5 @@ checkpoint.zip
 runs/
 checkpoint-*/
 *.pt
+model/varauto/spectro/
+model/varauto/var_spectro/
