@@ -1,6 +1,7 @@
 voice_data/
 .ipynb_checkpoints/
 model/checkpoint/*.pt
+model/checkpoint/*.zip
 cam_images_1.0/
 cam_images_0.9/
 cam_images_0.8/
