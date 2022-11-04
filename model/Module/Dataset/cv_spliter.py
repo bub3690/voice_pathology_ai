@@ -7,8 +7,9 @@ from sklearn.model_selection import StratifiedKFold
 from imblearn.over_sampling import RandomOverSampler
 from collections import Counter
 from sklearn.model_selection import train_test_split # train , test 분리에 사용.
+import numpy as np
 
-def cv_spliter(random_state):
+def cv_spliter(random_state,file_path):
     """
     5 CV data spliter
     Speark independence
@@ -26,7 +27,7 @@ def cv_spliter(random_state):
     # 
 
 
-    speaker_data=pd.read_excel("../voice_data/only_organics_healthy_available.xlsx")
+    speaker_data=pd.read_excel(file_path)
 
 
     pathology = speaker_data[speaker_data['PATHOLOGY']=='p']['SPEAKER'].unique().tolist()

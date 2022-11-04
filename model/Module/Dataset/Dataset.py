@@ -110,53 +110,75 @@ class svd_dataset(Dataset):
         return MSF, self.classes.index(self.label[idx])
 
 
-    #데이터 로더 제작 함수
-    def load_data(
-        X_train_list,
-        X_valid_list,
-        Y_train_list,
-        Y_valid_list,
-        BATCH_SIZE,
-        spectro_run_config,
-        mel_run_config,
-        mfcc_run_config,
-        
-        ):
+#데이터 로더 제작 함수
+def load_data(
+    X_train_list,
+    X_valid_list,
+    Y_train_list,
+    Y_valid_list,
+    BATCH_SIZE,
+    spectro_run_config,
+    mel_run_config,
+    mfcc_run_config,
+    
+    ):
 
-        train_loader = DataLoader(dataset = 
-                                                svd_dataset(
-                                                    X_train_list,
-                                                    Y_train_list,
-                                                    classes,
-                                                    mfcc_params=mfcc_run_config,
-                                                    mel_params=mel_run_config,
-                                                    spectro_params=spectro_run_config,
-                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
-                                                    #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
-                                                    #mfcc_normalize=(53.5582, 217.43),
-                                                ),
-                                                batch_size = BATCH_SIZE,
-                                                shuffle = True,
-                                                #worker_init_fn=seed_worker
-                                                ) # 순서가 암기되는것을 막기위해.
+    train_loader = DataLoader(dataset = 
+                                            svd_dataset(
+                                                X_train_list,
+                                                Y_train_list,
+                                                classes,
+                                                mfcc_params=mfcc_run_config,
+                                                mel_params=mel_run_config,
+                                                spectro_params=spectro_run_config,
+                                                transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                                #mfcc_normalize=(53.5582, 217.43),
+                                            ),
+                                            batch_size = BATCH_SIZE,
+                                            shuffle = True,
+                                            #worker_init_fn=seed_worker
+                                            ) # 순서가 암기되는것을 막기위해.
 
-        validation_loader = DataLoader(dataset = 
-                                                svd_dataset(
-                                                    X_valid_list,
-                                                    Y_valid_list,
-                                                    classes,
-                                                    mfcc_params=mfcc_run_config,
-                                                    mel_params=mel_run_config,
-                                                    spectro_params=spectro_run_config,
-                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
-                                                    #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
-                                                    #mfcc_normalize=(53.5582, 217.43),
-                                                ),
-                                                batch_size = BATCH_SIZE,
-                                                shuffle = True,
-                                                #worker_init_fn=seed_worker
-                                                )
+    validation_loader = DataLoader(dataset = 
+                                            svd_dataset(
+                                                X_valid_list,
+                                                Y_valid_list,
+                                                classes,
+                                                mfcc_params=mfcc_run_config,
+                                                mel_params=mel_run_config,
+                                                spectro_params=spectro_run_config,
+                                                transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                                #mfcc_normalize=(53.5582, 217.43),
+                                            ),
+                                            batch_size = BATCH_SIZE,
+                                            shuffle = True,
+                                            #worker_init_fn=seed_worker
+                                            )
 
-        return train_loader,validation_loader
+    return train_loader,validation_loader
+
+
+def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config):
+    test_loader = DataLoader(dataset = 
+                                            svd_dataset(
+                                                X_test,
+                                                Y_test,
+                                                classes,
+                                                mfcc_params=mfcc_run_config,
+                                                mel_params=mel_run_config,
+                                                spectro_params=spectro_run_config,
+                                                transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                                #mfcc_normalize=(53.5582, 217.43),
+                                            ),
+                                            batch_size = BATCH_SIZE,
+                                            shuffle = True,
+                                            #worker_init_fn=seed_worker
+                                            ) # 순서가 암기되는것을 막기위해.        
+
+
+    return test_loader
 
 

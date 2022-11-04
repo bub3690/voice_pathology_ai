@@ -17,3 +17,4 @@ model/varauto/spectro/
 model/varauto/var_spectro/
 wandb/
 checkpoint/
+*.pyc
