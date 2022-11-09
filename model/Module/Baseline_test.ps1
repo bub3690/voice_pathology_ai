@@ -2,8 +2,3 @@ python train.py --batch-size 16 --wandb True --model baseline --normalize none -
 python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1006 --descript "baseline resnet18 speaker independent"
 python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1007 --descript "baseline resnet18 speaker independent"
 python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1008 --descript "baseline resnet18 speaker independent"
-python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1009 --descript "baseline resnet18 speaker independent"
-python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1010 --descript "baseline resnet18 speaker independent"
-python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1011 --descript "baseline resnet18 speaker independent"
-python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1012 --descript "baseline resnet18 speaker independent"
-python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1013 --descript "baseline resnet18 speaker independent"

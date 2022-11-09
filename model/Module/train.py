@@ -170,7 +170,7 @@ def main():
                             help='write custom model for wandb')
     parser.add_argument('--normalize',type=str,default='none',
                         help='list : [none,global]')
-    parser.add_argument('--project-name',type=str, default='SVD-voice-disorde',
+    parser.add_argument('--project-name',type=str, default='SVD-voice-disorder',
                             help='project name for wandb')
     parser.add_argument('--tag',type=str,default=None,help='tag for wandb')
     parser.add_argument('--seed',type=int,default=1004,help='set the test seed')
@@ -270,10 +270,18 @@ def main():
         for Epoch in range(1,EPOCHS+1):
             train_loss,train_accuracy=train(model,train_loader,optimizer,DEVICE,criterion)
             valid_loss,valid_accuracy = evaluate(model, validation_loader,DEVICE,criterion)
+            
+            logger_valid_acc = "valid {}fold Accuracy".format(data_ind)
+            logger_train_acc = "train {}fold Accuracy".format(data_ind)
+            logger_valid_loss = "valid {}fold loss".format(data_ind)
+            logger_train_loss = "train {}fold loss".format(data_ind)
+            
             wandb.log({
-                    "valid {}fold Accuracy".format(data_ind) : valid_accuracy,
-                    "valid {}fold loss".format(data_ind) : valid_loss},
-                    commit=True,
+                    #logger_train_acc :train_accuracy,
+                    #logger_train_loss : train_loss,
+                    logger_valid_acc : valid_accuracy,
+                    logger_valid_loss : valid_loss},
+                    commit=False,
                     step=Epoch)
 
             print("\n[EPOCH:{}]\t Train Loss:{:.4f}\t Train Acc:{:.2f} %  | \tValid Loss:{:.4f} \tValid Acc: {:.2f} %\n".
@@ -341,11 +349,11 @@ def main():
     average_uar = 0
 
     for data_ind in range(1,6):
-        model=model_initialize()
+        model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
         check_path = './checkpoint/checkpoint_mel_ros_'+str(data_ind)+'_organics_speaker.pt'
         model.load_state_dict(torch.load(check_path))
 
-        predictions,answers,test_loss = test_evaluate(model, test_loader, DECVICE, criterion)
+        predictions,answers,test_loss = test_evaluate(model, test_loader, DEVICE, criterion)
         predictions=[ dat.cpu().numpy() for dat in predictions]
         answers=[ dat.cpu().numpy() for dat in answers]
 
@@ -357,8 +365,8 @@ def main():
         average_accuracy+=acc
         
         recall=cf[1,1]/(cf[1,1]+cf[1,0])
-        
         specificity=cf[0,0]/(cf[0,0]+cf[0,1])
+
         average_uar += (specificity+recall)/2
         #fscore=2*precision*recall/(precision+recall)
         

@@ -123,8 +123,7 @@ def load_data(
     
     ):
 
-    train_loader = DataLoader(dataset = 
-                                            svd_dataset(
+    train_loader = DataLoader(dataset = svd_dataset(
                                                 X_train_list,
                                                 Y_train_list,
                                                 classes,
