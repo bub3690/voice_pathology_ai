@@ -234,7 +234,9 @@ def main():
     phras_file_path = "../../voice_data/organics/phrase_sig_dict.pickle"
     phras_file_path_abs = os.path.abspath(phras_file_path)
 
+    print("데이터 로드")
     data_instance = PhraseData(phras_file_path_abs) #class에 데이터를 담아준다.
+    
     
     ## 11-02 여기까지 작성. Dataset, Models 다시보기
 
@@ -248,7 +250,7 @@ def main():
 
     for data_ind in range(1,6): 
 
-        check_path = './checkpoint/checkpoint_mel_ros_'+str(data_ind)+'_organics_speaker.pt'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_organics_speaker.pt'
         print(check_path)
         early_stopping = EarlyStopping(patience = 5, verbose = True, path=check_path)
         train_loader,validation_loader = load_data( X_train_list[data_ind-1],
@@ -350,7 +352,7 @@ def main():
 
     for data_ind in range(1,6):
         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        check_path = './checkpoint/checkpoint_mel_ros_'+str(data_ind)+'_organics_speaker.pt'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_organics_speaker.pt'
         model.load_state_dict(torch.load(check_path))
 
         predictions,answers,test_loss = test_evaluate(model, test_loader, DEVICE, criterion)
@@ -385,6 +387,9 @@ def main():
         print("f score : {:.4f} ".format(fscore))
         print(cf)
         print("-----")
+
+
+
     print("평균 acc : {:.4f}".format(average_accuracy/5))
     print("평균 UAR : {:.4f}".format(average_uar/5))
     print("평균 f1score : {:.4f}".format(average_fscore/5))
