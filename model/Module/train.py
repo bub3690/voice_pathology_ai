@@ -23,13 +23,13 @@ from Dataset.cv_spliter import cv_spliter #데이터 분할 모듈
 from Dataset.Data import PhraseData # phrase 데이터를 담아둔다.
 from Dataset.Dataset import load_data,load_test_data
 from Model.Models import model_initialize
-
+from Utils.Utils import get_mean_std
 
 
 
 import torchaudio
 #import torchaudio.functional as F
-import torchaudio.transforms as T
+
 
 
 
@@ -152,6 +152,9 @@ def evaluate(model,valid_loader,DEVICE,criterion):
 
 
 
+
+
+
 def main():
     
     # Training settings
@@ -168,8 +171,8 @@ def main():
                         help='list : [msf, baseline]')
     parser.add_argument('--name',type=str, default='res18',
                             help='write custom model for wandb')
-    parser.add_argument('--normalize',type=str,default='none',
-                        help='list : [none,global]')
+    parser.add_argument('--normalize',type=bool,default=False,
+                        help='true or false to get std normalize')
     parser.add_argument('--project-name',type=str, default='SVD-voice-disorder',
                             help='project name for wandb')
     parser.add_argument('--tag',type=str,default=None,help='tag for wandb')
@@ -182,8 +185,8 @@ def main():
 
     if args.wandb:
         project_name = args.project_name
-        wandb.init(project=project_name, entity="bub3690",tags=[args.tag])
-        wandb_run_name = args.model+'_'+args.name+'_norm_'+args.normalize+'seed_'+str(args.seed)
+        wandb.init(project=project_name, entity="bub3690",tags=[args.tag],settings=wandb.Settings(_disable_stats=True))
+        wandb_run_name = args.model+'_'+args.name+'_norm_'+str(args.normalize).lower()+'_seed_'+str(args.seed)
         wandb.run.name = wandb_run_name
         wandb.run.save()
         wandb.run.summary.update({"seed" : args.seed,})
@@ -221,15 +224,15 @@ def main():
     augment_kind="no"
     weight_decay = 0
 
-
-    wandb.config.update({
-        "learning_rate": lr,
-        "epochs": EPOCHS,
-        "batch_size": BATCH_SIZE,
-        "augment":augment_kind,
-        "weight_decay":weight_decay,
-        "특이사항":args.descript,
-    })
+    if args.wandb:
+        wandb.config.update({
+            "learning_rate": lr,
+            "epochs": EPOCHS,
+            "batch_size": BATCH_SIZE,
+            "augment":augment_kind,
+            "weight_decay":weight_decay,
+            "특이사항":args.descript,
+        })
 
     phras_file_path = "../../voice_data/organics/phrase_sig_dict.pickle"
     phras_file_path_abs = os.path.abspath(phras_file_path)
@@ -238,8 +241,21 @@ def main():
     data_instance = PhraseData(phras_file_path_abs) #class에 데이터를 담아준다.
     
     
-    ## 11-02 여기까지 작성. Dataset, Models 다시보기
+    ## find mean, std
+    ## log_spectro, mel_spectro, mfcc 순으로 담긴다.
+    norm_mean_list = []
+    norm_std_list = []
+    print("normalize 시작")
+    if args.normalize:
+        spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
+        mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
+        mfcc_mean,mfcc_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'mfcc',spectro_run_config,mel_run_config,mfcc_run_config)
 
+        norm_mean_list = [spectro_mean,mel_mean,mfcc_mean]
+        norm_std_list = [spectro_std,mel_std,mfcc_std]
+    print("mean : ",norm_mean_list)
+    print("std : ",norm_std_list)
+    ## 11-02 여기까지 작성. Dataset, Models 다시보기
 
     ##### 10. 학습 및 평가.
     # resnet18 pretrained true
@@ -250,7 +266,7 @@ def main():
 
     for data_ind in range(1,6): 
 
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_organics_speaker.pt'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         print(check_path)
         early_stopping = EarlyStopping(patience = 5, verbose = True, path=check_path)
         train_loader,validation_loader = load_data( X_train_list[data_ind-1],
@@ -260,7 +276,11 @@ def main():
                                                     BATCH_SIZE,
                                                     spectro_run_config,
                                                     mel_run_config,
-                                                    mfcc_run_config )
+                                                    mfcc_run_config,
+                                                    args.normalize,
+                                                    norm_mean_list,
+                                                    norm_std_list,
+                                                    args.model)
         best_train_acc=0 # accuracy 기록용
         best_valid_acc=0
         
@@ -278,13 +298,15 @@ def main():
             logger_valid_loss = "valid {}fold loss".format(data_ind)
             logger_train_loss = "train {}fold loss".format(data_ind)
             
-            wandb.log({
-                    #logger_train_acc :train_accuracy,
-                    #logger_train_loss : train_loss,
-                    logger_valid_acc : valid_accuracy,
-                    logger_valid_loss : valid_loss},
-                    commit=False,
-                    step=Epoch)
+
+            if args.wandb:
+                wandb.log({
+                        #logger_train_acc :train_accuracy,
+                        #logger_train_loss : train_loss,
+                        logger_valid_acc : valid_accuracy,
+                        logger_valid_loss : valid_loss},
+                        commit=False,
+                        step=Epoch)
 
             print("\n[EPOCH:{}]\t Train Loss:{:.4f}\t Train Acc:{:.2f} %  | \tValid Loss:{:.4f} \tValid Acc: {:.2f} %\n".
                 format(Epoch,train_loss,train_accuracy,valid_loss,valid_accuracy))
@@ -293,7 +315,8 @@ def main():
             early_stopping(valid_loss, model)
             if -early_stopping.best_score == valid_loss:
                 best_train_acc, best_valid_acc = train_accuracy,valid_accuracy
-                wandb.run.summary.update({"best_valid_{}fold_acc".format(data_ind) : best_valid_acc})
+                if args.wandb:
+                    wandb.run.summary.update({"best_valid_{}fold_acc".format(data_ind) : best_valid_acc})
             
             if early_stopping.early_stop:
                     train_accs.append(best_train_acc)
@@ -341,7 +364,11 @@ def main():
         BATCH_SIZE,
         spectro_run_config,
         mel_run_config,
-        mfcc_run_config )
+        mfcc_run_config,    
+        args.normalize,
+        norm_mean_list,
+        norm_std_list,
+        args.model)
 
 
     cf = np.zeros((2,2))
@@ -352,7 +379,7 @@ def main():
 
     for data_ind in range(1,6):
         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_organics_speaker.pt'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         model.load_state_dict(torch.load(check_path))
 
         predictions,answers,test_loss = test_evaluate(model, test_loader, DEVICE, criterion)
@@ -393,10 +420,10 @@ def main():
     print("평균 acc : {:.4f}".format(average_accuracy/5))
     print("평균 UAR : {:.4f}".format(average_uar/5))
     print("평균 f1score : {:.4f}".format(average_fscore/5))
-    wandb.run.summary.update({"test 평균 acc" : average_accuracy/5})
-    wandb.run.summary.update({"test 평균 f1" : average_fscore/5})
-    wandb.run.summary.update({"test 평균 UAR" : average_uar/5})
-
+    if args.wandb:
+        wandb.run.summary.update({"test 평균 acc" : average_accuracy/5})
+        wandb.run.summary.update({"test 평균 f1" : average_fscore/5})
+        wandb.run.summary.update({"test 평균 UAR" : average_uar/5})
 
     return
 
