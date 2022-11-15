@@ -43,8 +43,6 @@ class svd_dataset(Dataset):
         self.label = y_label_list # label data
         self.classes=classes
         self.transform=transform
-        
-        
 
         # sweep params
         self.mel_params = mel_params
@@ -290,7 +288,7 @@ class svd_dataset_msf(Dataset):
         stft = librosa.stft(sig, win_length=self.spectro_params["win_length"],
                                 n_fft=self.spectro_params["n_fft"],
                                 hop_length=self.spectro_params["hop_length"]
-                                   )
+                            )
         magnitude = np.abs(stft)
         log_spectrogram = librosa.amplitude_to_db(magnitude)
         
@@ -325,8 +323,8 @@ class svd_dataset_msf(Dataset):
         MFCCs=MFCC(sig_torch)
         
         MFCCs = MFCCs[1:,]
-        #if self.mfcc_normalize:
-        #MFCCs=(MFCCs-self.mfcc_normalize[0])/self.mfcc_normalize[1]
+        if self.mfcc_normalize:
+           MFCCs=(MFCCs-self.mfcc_normalize[0])/self.mfcc_normalize[1]
         (nframes, ncoeff) = MFCCs.shape
         cep_lifter = self.mfcc_params["lifter"]
         
@@ -463,16 +461,9 @@ def load_data(
                                                 #worker_init_fn=seed_worker
                                                 )
     elif model=='decomp':
-        pass
-    return train_loader,validation_loader
-
-
-def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,model):
-    if model=='baseline':
-        test_loader = DataLoader(dataset = 
-                                                svd_dataset(
-                                                    X_test,
-                                                    Y_test,
+        train_loader = DataLoader(dataset = svd_dataset_harmonic(
+                                                    X_train_list,
+                                                    Y_train_list,
                                                     classes,
                                                     mfcc_params=mfcc_run_config,
                                                     mel_params=mel_run_config,
@@ -488,6 +479,48 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_harmonic(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mfcc_params=mfcc_run_config,
+                                                    mel_params=mel_run_config,
+                                                    spectro_params=spectro_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_normalize=is_normalize,
+                                                    norm_mean_list=norm_mean_list,
+                                                    norm_std_list=norm_std_list,
+                                                    #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                                    #mfcc_normalize=(53.5582, 217.43),
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )
+    return train_loader,validation_loader
+
+
+def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,model):
+    if model=='baseline':
+        test_loader = DataLoader(dataset = svd_dataset(
+                                            X_test,
+                                            Y_test,
+                                            classes,
+                                            mfcc_params=mfcc_run_config,
+                                            mel_params=mel_run_config,
+                                            spectro_params=spectro_run_config,
+                                            transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                            is_normalize=is_normalize,
+                                            norm_mean_list=norm_mean_list,
+                                            norm_std_list=norm_std_list,
+                                            #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                            #mfcc_normalize=(53.5582, 217.43),
+                                        ),
+                                        batch_size = BATCH_SIZE,
+                                        shuffle = True,
+                                        #worker_init_fn=seed_worker
+                                        ) # 순서가 암기되는것을 막기위해.
     elif model=='msf':
         test_loader = DataLoader(dataset =  svd_dataset_msf(
                                                     X_test,
@@ -506,7 +539,26 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
-                                                ) # 순서가 암기되는것을 막기위해.        
+                                                ) # 순서가 암기되는것을 막기위해.
+    elif model=='decomp':
+        test_loader = DataLoader(dataset =  svd_dataset_harmonic(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mfcc_params=mfcc_run_config,
+                                                    mel_params=mel_run_config,
+                                                    spectro_params=spectro_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_normalize=is_normalize,
+                                                    norm_mean_list=norm_mean_list,
+                                                    norm_std_list=norm_std_list,
+                                                    #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                                    #mfcc_normalize=(53.5582, 217.43),
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
     return test_loader
 
 

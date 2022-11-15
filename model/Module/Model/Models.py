@@ -78,8 +78,10 @@ class MSF(nn.Module):
 
 
 def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_config):
-    if model_name=='MSF':
+    if model_name=='msf':
         model = MSF(mfcc_run_config['n_mfcc']).cuda()
-    else:
+    elif model_name == 'baseline':
+        model = ResLayer().cuda()
+    elif model_name == 'decomp':
         model = ResLayer().cuda()
     return model
