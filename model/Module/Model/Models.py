@@ -3,6 +3,8 @@ import torch.nn as nn # 인공 신경망 모델들 모아놓은 모듈
 import torch.nn.functional as F #그중 자주 쓰이는것들을 F로
 import torchvision.models as models
 
+from torchvision.models import ResNet
+import timm
 
 
 # # RESNET
@@ -77,6 +79,28 @@ class MSF(nn.Module):
 
 
 
+###
+#seresnet
+
+def se_resnet18(num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = timm.create_model('legacy_seresnet18',num_classes=2,pretrained=True)
+    return model
+
+
+
+#####
+
+
+
+
+
+
+
+
 def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_config):
     if model_name=='msf':
         model = MSF(mfcc_run_config['n_mfcc']).cuda()
@@ -84,4 +108,7 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = ResLayer().cuda()
     elif model_name == 'decomp':
         model = ResLayer().cuda()
+    elif model_name == 'se_resnet18':
+        model = se_resnet18().cuda()
+
     return model

@@ -193,13 +193,23 @@ class svd_dataset_harmonic(Dataset):
                                                     hop_length = self.mel_params["hop_length"],
                                                     fmax = self.mel_params["f_max"]
                                                     )
-        mel_feature = librosa.core.power_to_db(mel_feature,ref=np.max) 
-        
-        
+        mel_feature = librosa.core.power_to_db(mel_feature,ref=np.max)
+
+        mel_feature1 = mel_feature.copy()
+        mel_feature2 = mel_feature.copy()
+        mel_feature3 = mel_feature.copy()
+
+        mel_feature1[:42,:] = 0
+        mel_feature2[42:42*2,:] = 0
+        mel_feature3[42*2:42*3,:] = 0
+
         if self.transform:
-            mel_feature = self.transform(mel_feature).type(torch.float32)# 데이터 0~1 정규화
-            MSF = torch.stack([mel_feature, mel_feature, mel_feature])# 3채널로 복사.
-            MSF = MSF.squeeze(dim=1)    
+            mel_feature1 = self.transform(mel_feature1).type(torch.float32)# 
+            mel_feature2 = self.transform(mel_feature2).type(torch.float32)# 
+            mel_feature3 = self.transform(mel_feature3).type(torch.float32)# 
+
+            MSF = torch.stack([mel_feature1, mel_feature2, mel_feature3])# 3채널로 복사.
+            MSF = MSF.squeeze(dim=1)
             
             # global normalize
             if self.normalize:
@@ -380,8 +390,6 @@ def load_data(
     norm_std_list,
     model    
     ):
-
-
     if model=='baseline':
         train_loader = DataLoader(dataset = svd_dataset(
                                                     X_train_list,
@@ -498,6 +506,47 @@ def load_data(
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 )
+    else:
+        train_loader = DataLoader(dataset = svd_dataset(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mfcc_params=mfcc_run_config,
+                                                    mel_params=mel_run_config,
+                                                    spectro_params=spectro_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_normalize=is_normalize,
+                                                    norm_mean_list=norm_mean_list,
+                                                    norm_std_list=norm_std_list,
+                                                    #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                                    #mfcc_normalize=(53.5582, 217.43),
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mfcc_params=mfcc_run_config,
+                                                    mel_params=mel_run_config,
+                                                    spectro_params=spectro_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_normalize=is_normalize,
+                                                    norm_mean_list=norm_mean_list,
+                                                    norm_std_list=norm_std_list,
+                                                    #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                                    #mfcc_normalize=(53.5582, 217.43),
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )        
+    
+    
     return train_loader,validation_loader
 
 
@@ -559,6 +608,27 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
+    else:
+        test_loader = DataLoader(dataset = svd_dataset(
+                                            X_test,
+                                            Y_test,
+                                            classes,
+                                            mfcc_params=mfcc_run_config,
+                                            mel_params=mel_run_config,
+                                            spectro_params=spectro_run_config,
+                                            transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                            is_normalize=is_normalize,
+                                            norm_mean_list=norm_mean_list,
+                                            norm_std_list=norm_std_list,
+                                            #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
+                                            #mfcc_normalize=(53.5582, 217.43),
+                                        ),
+                                        batch_size = BATCH_SIZE,
+                                        shuffle = True,
+                                        #worker_init_fn=seed_worker
+                                        ) # 순서가 암기되는것을 막기위해.        
+    
+    
     return test_loader
 
 
