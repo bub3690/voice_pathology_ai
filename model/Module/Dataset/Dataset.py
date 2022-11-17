@@ -9,13 +9,55 @@ from .Data import PhraseData
 import torchaudio.transforms as T
 
 
+###
+# augmentation
+class Cutout(object):
+    """Randomly mask out one or more patches from an image.
+    Args:
+        n_holes (int): Number of patches to cut out of each image.
+        length (int): The length (in pixels) of each square patch.
+    """
+    def __init__(self, n_holes, length):
+        self.n_holes = n_holes
+        self.length = length
+
+    def __call__(self, img):
+        """
+        Args:
+            img (Tensor): Tensor image of size (C, H, W).
+        Returns:
+            Tensor: Image with n_holes of dimension length x length cut out of it.
+        """
+        h = img.size(1)
+        w = img.size(2)
+
+        mask = np.ones((h, w), np.float32)
+
+        for n in range(self.n_holes):
+            y = np.random.randint(50,78)
+            x = np.random.randint(w)
+
+            y1 = np.clip(y - self.length // 2, 0, h)
+            y2 = np.clip(y + self.length // 2, 0, h)
+            x1 = np.clip(x - self.length // 2, 0, w)
+            x2 = np.clip(x + self.length // 2, 0, w)
+
+            mask[y1: y2, x1: x2] = 0.
+
+        mask = torch.from_numpy(mask)
+        mask = mask.expand_as(img)
+        img = img * mask
+
+        return img
+
+###
+
 # # 데이터 정의
 # - 추가적으로 데이터의 크기를 맞춰주기 위해 3초로 padding 및 truncate 실시 https://sequencedata.tistory.com/25 FixAudioLength
 # - 논문에서는 400frame으로 설정.(여기서는 500frame)
 # - 전처리 방법 결정.
 # 
 # 데이터 로더
-
 
 classes = ["healthy","pathology"]
 
@@ -31,7 +73,10 @@ class svd_dataset(Dataset):
                 is_normalize,
                 norm_mean_list,
                 norm_std_list,
-                transform=None,):
+                augmentation=[],
+                augment_params=dict(),
+                transform=None,
+                is_train=False,):
 
         #클래스에서 사용할 인자를 받아 인스턴스 변수로 저장하는 일을 한다.
         #예를들면, 이미지의 경로 리스트를 저장하는 일을 하게 된다.
@@ -50,12 +95,32 @@ class svd_dataset(Dataset):
         self.mfcc_params = mfcc_params
         #sr,n_mfcc,lifter, hop_length , win_length , n_mels , n_fft , f_max , batch_size
 
+        self.is_train = is_train
+
         #noramlize 관련
         self.is_normalize = is_normalize
         if is_normalize:
             self.normalize=transforms.Normalize((norm_mean_list[1],norm_mean_list[1],norm_mean_list[1]),(norm_std_list[1],norm_std_list[1],norm_std_list[1]))
         else:
             self.normalize=None
+
+        #augmentation들
+        self.crop = None
+        self.spec_augment = None
+        self.augment_params = augment_params
+        
+        if "crop" in augmentation:
+            self.crop = transforms.RandomApply([
+                                                Cutout(self.augment_params['crop'][0],
+                                                self.augment_params['crop'][1]),
+                                                ],
+                                                p = self.augment_params['crop'][2])
+        if "spec_augment" in augmentation:
+            self.spec_augment = transforms.RandomApply([
+                                                    transforms.Compose([T.TimeMasking(time_mask_param=self.augment_params['spec_augment'][0]),
+                                                                        T.FrequencyMasking(freq_mask_param=self.augment_params['spec_augment'][1]),],)
+                                               ],
+                                               p=self.augment_params['spec_augment'][2])
 
     def __len__(self):
         return len(self.path_list)
@@ -107,6 +172,15 @@ class svd_dataset(Dataset):
             # global normalize
             if self.normalize:
                 MSF = self.normalize(MSF)
+            
+
+            if self.is_train:
+                #spec augment
+                if self.crop:
+                    MSF = self.crop(MSF)
+                if self.spec_augment:
+                    MSF = self.spec_augment(MSF)
+
         else:
             pass
             #print("else")
@@ -126,6 +200,7 @@ class svd_dataset_harmonic(Dataset):
                 is_normalize,
                 norm_mean_list,
                 norm_std_list,
+                is_train=False,
                 transform=None,):
 
         #클래스에서 사용할 인자를 받아 인스턴스 변수로 저장하는 일을 한다.
@@ -235,7 +310,10 @@ class svd_dataset_msf(Dataset):
                 is_normalize,
                 norm_mean_list,
                 norm_std_list,
-                transform=None,):
+                augmentation=[],
+                augment_params=dict(),
+                transform=None,
+                is_train=False,):
 
         #클래스에서 사용할 인자를 받아 인스턴스 변수로 저장하는 일을 한다.
         #예를들면, 이미지의 경로 리스트를 저장하는 일을 하게 된다.
@@ -248,7 +326,7 @@ class svd_dataset_msf(Dataset):
         self.classes=classes
         self.transform=transform
         
-        
+        self.is_train = is_train
 
         # sweep params
         self.mel_params = mel_params
@@ -264,6 +342,25 @@ class svd_dataset_msf(Dataset):
         else:
             self.normalize=None
             self.mfcc_normalize=None
+
+
+        #augmentation들
+        self.crop = None
+        self.spec_augment = None
+        self.augment_params = augment_params
+        
+        if "crop" in augmentation:
+            self.crop = transforms.RandomApply([
+                                                Cutout(self.augment_params['crop'][0],
+                                                self.augment_params['crop'][1]),
+                                                ],
+                                                p = self.augment_params['crop'][2])
+        if "spec_augment" in augmentation:
+            self.spec_augment = transforms.RandomApply([
+                                                    transforms.Compose([T.TimeMasking(time_mask_param=self.augment_params['spec_augment'][0]),
+                                                                        T.FrequencyMasking(freq_mask_param=self.augment_params['spec_augment'][1]),],)
+                                               ],
+                                               p=self.augment_params['spec_augment'][2])
 
     def __len__(self):
         return len(self.path_list)
@@ -366,6 +463,13 @@ class svd_dataset_msf(Dataset):
             if self.normalize:
                 #MFCCs=self.normalize(MFCCs)
                 MSF = self.normalize(MSF)
+            if self.is_train:
+                #spec augment
+                if self.crop:
+                    MSF = self.crop(MSF)
+                if self.spec_augment:
+                    MSF = self.spec_augment(MSF)
+    
         else:
             pass
             #print("else")
@@ -388,8 +492,11 @@ def load_data(
     is_normalize,
     norm_mean_list,
     norm_std_list,
-    model    
+    model,
+    augment,
+    augment_params
     ):
+    
     if model=='baseline':
         train_loader = DataLoader(dataset = svd_dataset(
                                                     X_train_list,
@@ -402,6 +509,9 @@ def load_data(
                                                     is_normalize=is_normalize,
                                                     norm_mean_list=norm_mean_list,
                                                     norm_std_list=norm_std_list,
+                                                    is_train=True,
+                                                    augmentation=augment,
+                                                    augment_params=augment_params,
                                                     #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
                                                     #mfcc_normalize=(53.5582, 217.43),
                                                 ),
@@ -441,6 +551,9 @@ def load_data(
                                                     is_normalize=is_normalize,
                                                     norm_mean_list=norm_mean_list,
                                                     norm_std_list=norm_std_list,
+                                                    is_train=True,
+                                                    augmentation=augment,
+                                                    augment_params=augment_params,
                                                     #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
                                                     #mfcc_normalize=(53.5582, 217.43),
                                                 ),
@@ -449,15 +562,14 @@ def load_data(
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
 
-        validation_loader = DataLoader(dataset = 
-                                                svd_dataset_msf(
+        validation_loader = DataLoader(dataset= svd_dataset_msf(
                                                     X_valid_list,
                                                     Y_valid_list,
                                                     classes,
                                                     mfcc_params=mfcc_run_config,
                                                     mel_params=mel_run_config,
                                                     spectro_params=spectro_run_config,
-                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    transform=transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
                                                     is_normalize=is_normalize,
                                                     norm_mean_list=norm_mean_list,
                                                     norm_std_list=norm_std_list,
@@ -480,6 +592,8 @@ def load_data(
                                                     is_normalize=is_normalize,
                                                     norm_mean_list=norm_mean_list,
                                                     norm_std_list=norm_std_list,
+                                                    is_train=True,
+                                                    augmentation=augment,
                                                     #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
                                                     #mfcc_normalize=(53.5582, 217.43),
                                                 ),
@@ -518,6 +632,8 @@ def load_data(
                                                     is_normalize=is_normalize,
                                                     norm_mean_list=norm_mean_list,
                                                     norm_std_list=norm_std_list,
+                                                    is_train=True,
+                                                    augmentation=augment
                                                     #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
                                                     #mfcc_normalize=(53.5582, 217.43),
                                                 ),
@@ -544,9 +660,7 @@ def load_data(
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
-                                                )        
-    
-    
+                                                )
     return train_loader,validation_loader
 
 

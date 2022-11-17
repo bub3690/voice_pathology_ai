@@ -279,6 +279,7 @@ def main():
                         help='true or false to get std normalize')
     parser.add_argument('--project-name',type=str, default='SVD-voice-disorder',
                             help='project name for wandb')
+    parser.add_argument("--augment", nargs='+', type=str,help="[crop,spec_augment]",default=[])
     parser.add_argument('--tag',type=str,default=None,help='tag for wandb')
     parser.add_argument('--seed',type=int,default=1004,help='set the test seed')
     parser.add_argument('--descript',type=str, default='baseline. speaker indep',
@@ -302,7 +303,6 @@ def main():
         DEVICE = torch.device('cpu')
     #DEVICE = torch.device('cpu')
     print('Using Pytorch version : ',torch.__version__,' Device : ',DEVICE)
-
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     torch.manual_seed(1234)
@@ -325,8 +325,13 @@ def main():
     BATCH_SIZE =  args.batch_size #한 배치당 32개 음성데이터
     EPOCHS = 40 # 전체 데이터 셋을 40번 반복
     lr=1e-4
-    augment_kind="no"
+    augment_kind=args.augment
     weight_decay = 0
+
+    augment_params = dict()
+    augment_params['spec_augment']=[30, 13, 1.0] # time_mask_param,freq_mask_param, augement_p
+    augment_params['crop']=[1, 50, 1.0] # augment_n , augment_size, augement_p
+
 
     if args.wandb:
         wandb.config.update({
@@ -349,8 +354,9 @@ def main():
     ## log_spectro, mel_spectro, mfcc 순으로 담긴다.
     norm_mean_list = []
     norm_std_list = []
-    print("normalize 시작")
+    
     if args.normalize:
+        print("normalize 시작")
         spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
         mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
         mfcc_mean,mfcc_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'mfcc',spectro_run_config,mel_run_config,mfcc_run_config)
@@ -384,7 +390,9 @@ def main():
                                                     args.normalize,
                                                     norm_mean_list,
                                                     norm_std_list,
-                                                    args.model)
+                                                    args.model,
+                                                    args.augment,
+                                                    augment_params)
         best_train_acc=0 # accuracy 기록용
         best_valid_acc=0
         
