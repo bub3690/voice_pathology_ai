@@ -303,13 +303,6 @@ def main(args):
 
 
 
-    
-    X_res
-
-    
-
-
-
         
     #load
     with open("../../../voice_data/organics/phrase_sig_dict.pickle","rb") as fr:
@@ -433,55 +426,6 @@ def main(args):
     lr=1e-4
     augment_kind="no"
     weight_decay = 0
-
-    
-    #DATA LOADER 함수가 BATCH_size 단위로 분리해 지정.
-
-    #확인을 위해 데이터셋 하나만 확인
-
-
-    train_loader = torch.utils.data.DataLoader(dataset = 
-                                            svd_dataset(
-                                                X_train_list,
-                                                classes,
-                                                transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정. to tensor는 -데이터는 노멀라이즈못함.
-                                                #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
-                                                #mfcc_normalize=(53.5582, 217.43),
-                                                mel_params=run_config,
-                                                data_num=0,
-                                                training=True
-                                            ),
-                                            batch_size = BATCH_SIZE,
-                                            shuffle = True,
-                                            ) # 순서가 암기되는것을 막기위해.
-
-    validation_loader = torch.utils.data.DataLoader(dataset = 
-                                            svd_dataset(
-                                                X_valid_list,
-                                                classes,
-                                                transform = transforms.ToTensor(),
-                                                #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
-                                                #mfcc_normalize=(53.5582, 217.43),
-                                                mel_params=run_config,
-                                                data_num=0,
-                                                training=False
-                                            ),
-                                            batch_size = BATCH_SIZE,
-                                            shuffle = True,) 
-
-
-
-
-    # # 데이터 확인
-
-    
-
-    sr=16000
-    win_length =  run_config["win_length"] # 400
-    n_fft= run_config["n_fft"] # WINDOWS SIZE중 사용할 길이. WINDOW SIZE가 넘어가면 나머지 것들은 zero padding. 세로 길이
-    hop_length=run_config["hop_length"] #  얼마만큼 시간 주기(sample)를 이동하면서 분석을 할 것인지. 일반적으로 window size의 1/4
-    #또는 10ms만큼으로 한다고 한다.
-    #hop_length가 mfcc의 frame수를 결정한다.
 
 
     #batch: 32 / 3채널 / frame수: 500  /  feature수: 13
