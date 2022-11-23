@@ -46,6 +46,9 @@ from torch.utils.data import Dataset, DataLoader
 
 
 
+#args = None #글로벌 변수로 접근 위한 것
+
+
 
 def main(args):
     #default param
@@ -525,7 +528,7 @@ def main(args):
         random.seed(worker_seed)
 
 
-    def load_data(data_ind):
+    def load_data(data_ind,num_workers):
 
         train_loader = torch.utils.data.DataLoader(dataset = 
                                                 svd_dataset(
@@ -545,7 +548,8 @@ def main(args):
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
-                                                worker_init_fn=seed_worker
+                                                worker_init_fn=seed_worker,
+                                                num_workers=num_workers
                                                 ) # 순서가 암기되는것을 막기위해.
 
 
@@ -567,7 +571,8 @@ def main(args):
                                                 ),
                                                         batch_size = BATCH_SIZE,
                                                         shuffle = True,
-                                                        worker_init_fn=seed_worker) 
+                                                        worker_init_fn=seed_worker,
+                                                        num_workers=num_workers) 
         return train_loader,validation_loader
 
 
@@ -584,7 +589,7 @@ def main(args):
 
 
 
-    def all_train():
+    def all_train(args):
         wandb.init(project="SVD-hyp-sweep2", entity="bub3690",config=run_config)
         data_ind = 1
         check_path ='../checkpoint/log-spectrogram_sweep_'+str(args.seed)+'_organics_speaker.pt'
@@ -593,7 +598,7 @@ def main(args):
         print("config:", dict(wandb.config))    
 
         early_stopping = EarlyStopping(patience = 5, verbose = True, path=check_path)
-        train_loader,validation_loader = load_data(data_ind-1)
+        train_loader,validation_loader = load_data(data_ind-1,args.num_workers)
 
         best_train_acc = 0 # accuracy 기록용
         best_valid_acc = 0
@@ -644,7 +649,7 @@ def main(args):
                 valid_accs.append(best_valid_acc)
 
     
-    wandb.agent(sweep_id, function=all_train,count=100)
+    wandb.agent(sweep_id, function=all_train(args),count=100)
 
 
 
@@ -652,6 +657,7 @@ if __name__=='__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='Voice Disorder Detection sweep')
     parser.add_argument('--seed',type=int,default=1004,help='set the test seed')
+    parser.add_argument('--num-workers',type=int,default=0,help='set the workers')
 
 
     args = parser.parse_args()
