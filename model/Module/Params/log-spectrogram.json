@@ -1,0 +1,32 @@
+{
+    "1004":{
+        "sr": 16000,
+        "win_length": 260,
+        "n_fft": 840,
+        "hop_length": 100
+    },
+    "1005":{
+        "sr": 16000,
+        "win_length": 810,
+        "n_fft": 1640,
+        "hop_length": 150
+    },
+    "1006":{
+        "sr": 16000,
+        "win_length": 260,
+        "n_fft": 770,
+        "hop_length": 50
+    },
+    "1007":{
+        "sr": 16000,
+        "win_length": 820,
+        "n_fft": 1400,
+        "hop_length": 450
+    },
+    "1008":{
+        "sr": 16000,
+        "win_length": 2490,
+        "n_fft": 3120,
+        "hop_length": 50
+    }
+  }

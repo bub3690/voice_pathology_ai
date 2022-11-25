@@ -139,12 +139,12 @@ class svd_dataset(Dataset):
         
         origin_length = sig.shape[0]
         
-        if sig.shape[0] > self.mfcc_params["sr"]*2:
-            origin_length = self.mfcc_params["sr"]*2
+        if sig.shape[0] > self.mel_params["sr"]*2:
+            origin_length = self.mel_params["sr"]*2
         
         origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
         
-        length = self.mfcc_params["sr"]*2 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        length = self.mel_params["sr"]*2 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
         pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
         sig = pad1d(sig,length)        
         
@@ -246,12 +246,12 @@ class svd_dataset_harmonic(Dataset):
         
         origin_length = sig.shape[0]
         
-        if sig.shape[0] > self.mfcc_params["sr"]*2:
-            origin_length = self.mfcc_params["sr"]*2
+        if sig.shape[0] > self.mel_params["sr"]*2:
+            origin_length = self.mel_params["sr"]*2
         
         origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
         
-        length = self.mfcc_params["sr"]*2 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        length = self.mel_params["sr"]*2 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
         pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
         sig = pad1d(sig,length)        
         

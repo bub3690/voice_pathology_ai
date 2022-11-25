@@ -28,6 +28,7 @@ from Utils.Utils import get_mean_std
 
 
 import torchaudio
+import json
 #import torchaudio.functional as F
 
 
@@ -47,45 +48,53 @@ import matplotlib.pyplot as plt
 
 #default param
 
-spectro_run_config = dict(
-    sr=16000,
-    n_fft=350,
-    hop_length=50,
-    win_length=350,
-    # training
-    batch_size=16,
-)
+# spectro_run_config = dict(
+#     sr=16000,
+#     n_fft=350,
+#     hop_length=50,
+#     win_length=350,
+#     # training
+#     batch_size=16,
+# )
 
-mel_run_config = dict(
-    sr=16000,
-    n_mels=128,
-    win_length =  300,
-    n_fft= 2048,
-    hop_length= 50,
-    f_max = 8000    
-)
+# #기존 파라미터
+# #mel_run_config = dict(
+# #    sr=16000,
+# #    n_mels=128,
+# #    win_length =  300,
+# #    n_fft= 2048,
+# #    hop_length= 50,
+# #    f_max = 8000    
+# #)
+# mel_run_config = dict(
+#    sr=16000,
+#    n_mels=128,
+#    win_length =  300,
+#    n_fft= 2048,
+#    hop_length= 50,
+#    f_max = 8000    
+# )
 
 
-mfcc_run_config = dict(
-    sr=16000,
-    n_mfcc=27,
-    #dct_type=3, # type2 default
-    lifter = 35,
+# mfcc_run_config = dict(
+#     sr=16000,
+#     n_mfcc=27,
+#     #dct_type=3, # type2 default
+#     lifter = 35,
     
-    #mel spectro
-    n_mels=170,
-    hop_length=750,
-    n_fft =14056,    
-    win_length=1100,
-    f_max=8000,
+#     #mel spectro
+#     n_mels=170,
+#     hop_length=750,
+#     n_fft =14056,    
+#     win_length=1100,
+#     f_max=8000,
     
-    # training
-    #batch_size=32,
-    mel_scale ='htk',
+#     # training
+#     #batch_size=32,
+#     mel_scale ='htk',
     
-    # data
-    fold=1,
-)
+#     # data
+# )
 
 #confusion matrix 계산
 #test set 계산.
@@ -349,7 +358,17 @@ def main():
     print("데이터 로드")
     data_instance = PhraseData(phras_file_path_abs) #class에 데이터를 담아준다.
     
-    
+
+    ## hyp-parameter
+    print("하이퍼 파라미터 로드")
+    with open('./Params/log-spectrogram.json') as f:
+        spectro_run_config = json.load(f)[str(args.seed)] 
+    with open('./Params/mel-spectrogram.json') as f:
+        mel_run_config = json.load(f)[str(args.seed)] 
+    with open('./Params/mfcc.json') as f:
+        mfcc_run_config = json.load(f)[str(args.seed)] 
+
+
     ## find mean, std
     ## log_spectro, mel_spectro, mfcc 순으로 담긴다.
     norm_mean_list = []
@@ -365,7 +384,7 @@ def main():
         norm_std_list = [spectro_std,mel_std,mfcc_std]
         print("mean : ",norm_mean_list)
         print("std : ",norm_std_list)
-    ## 11-02 여기까지 작성. Dataset, Models 다시보기
+    
 
     ##### 10. 학습 및 평가.
     # resnet18 pretrained true

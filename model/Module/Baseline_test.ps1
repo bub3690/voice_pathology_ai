@@ -1,3 +1,4 @@
-python train.py --batch-size 16 --model msf --tag msf --seed 1005 --wandb True --augment crop --descript "msf speaker independant. crop. without norm"
-python train.py --batch-size 16 --model msf --tag msf --seed 1007 --wandb True --augment crop --descript "msf speaker independant. crop. without norm"
-python train.py --batch-size 16 --model msf --tag msf --seed 1008 --wandb True --augment crop --descript "msf speaker independant. crop. without norm"
+python train.py --batch-size 16 --model baseline --tag baseline_hyp --seed 1005 --wandb True  --descript "baseline speaker independant. hyp tuning. mel spectrogram. without norm"
+python train.py --batch-size 16 --model baseline --tag baseline_hyp --seed 1006 --wandb True  --descript "baseline speaker independant. hyp tuning. mel spectrogram. without norm"
+python train.py --batch-size 16 --model baseline --tag baseline_hyp --seed 1007 --wandb True  --descript "baseline speaker independant. hyp tuning. mel spectrogram. without norm"
+python train.py --batch-size 16 --model baseline --tag baseline_hyp --seed 1008 --wandb True  --descript "baseline speaker independant. hyp tuning. mel spectrogram. without norm"
