@@ -675,7 +675,7 @@ def main(args):
                 train_accs.append(best_train_acc)
                 valid_accs.append(best_valid_acc)
     
-    wandb.agent(sweep_id, function=lambda: all_train(args),count=100)
+    wandb.agent(sweep_id, function=lambda: all_train(args),count=200)
 
 if __name__=='__main__':
     # Training settings
