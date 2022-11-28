@@ -90,10 +90,10 @@ def main(args):
                 "values":np.arange(30,192,10).tolist()
             },
             "n_fft": {
-                    "values": np.arange(50,18000,50).tolist() # 제일 중요한 파라미터
+                    "values": np.arange(50,1000,10).tolist() # 제일 중요한 파라미터
                 },
             "win_length": {
-                    "values": np.arange(200,4051,50).tolist()
+                    "values": np.arange(200,4051,10).tolist()
                 },
             "hop_length": {
                 "values": np.arange(50,850,10).tolist()
