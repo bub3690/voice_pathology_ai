@@ -75,7 +75,7 @@ def main(args):
                     "values": np.arange(50,4096,10).tolist()
                 },
             "hop_length": {
-                "values": np.arange(50,1000,50).tolist()
+                "values": np.arange(50,1000,10).tolist()
             },          
         }
     }
