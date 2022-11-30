@@ -87,7 +87,7 @@ def main(args):
                 "values":np.arange(0,42,1).tolist()
             },
             "n_mels" :{
-                "values":np.arange(30,192,10).tolist()
+                "values":np.arange(30,192,2).tolist()
             },
             "n_fft": {
                     "values": np.arange(50,1000,10).tolist() # 제일 중요한 파라미터
