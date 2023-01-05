@@ -14,8 +14,10 @@ class ResLayer(nn.Module):
     def __init__(self):
         super(ResLayer, self).__init__()
         self.model = models.resnet18(pretrained=True).cuda() 
-        self.num_ftrs = self.model.fc.out_features
-        self.fc = nn.Sequential(       
+        #self.num_ftrs = self.model.fc.out_features
+        self.num_ftrs = self.model.fc.in_features
+
+        self.model.fc = nn.Sequential(       
             nn.Linear(self.num_ftrs, 64),
                             nn.BatchNorm1d(64),
                             nn.ReLU(),
@@ -26,9 +28,20 @@ class ResLayer(nn.Module):
                             nn.Dropout(p=0.5),
                             nn.Linear(50,2)
                             )
+        # self.fc = nn.Sequential(       
+        #     nn.Linear(self.num_ftrs, 64),
+        #                     nn.BatchNorm1d(64),
+        #                     nn.ReLU(),
+        #                     nn.Dropout(p=0.5),
+        #                     nn.Linear(64,50),
+        #                     nn.BatchNorm1d(50),
+        #                     nn.ReLU(),
+        #                     nn.Dropout(p=0.5),
+        #                     nn.Linear(50,2)
+        #                     )
     def forward(self, x):
         x = self.model(x)
-        x  = self.fc(x)
+        #x  = self.fc(x)
         return x
 
 
