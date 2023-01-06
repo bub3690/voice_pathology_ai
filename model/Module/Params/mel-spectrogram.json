@@ -1,42 +1,42 @@
 {
     "1004":{
         "sr": 16000,
-        "n_mels": 190,
-        "win_length": 1290,
-        "n_fft": 1630,
-        "hop_length": 150,
+        "n_mels": 128,
+        "win_length": 400,
+        "n_fft": 400,
+        "hop_length": 100,
         "f_max": 8000
     },
     "1005":{
         "sr": 16000,
-        "n_mels": 120,
-        "win_length": 560,
-        "n_fft": 980,
-        "hop_length": 250,
+        "n_mels": 80,
+        "win_length": 3210,
+        "n_fft": 3610,
+        "hop_length": 780,
         "f_max": 8000
     },
     "1006":{
         "sr": 16000,
-        "n_mels": 170,
-        "win_length": 970,
-        "n_fft": 1670,
-        "hop_length": 100,
+        "n_mels": 150,
+        "win_length": 630,
+        "n_fft": 890,
+        "hop_length": 110,
         "f_max": 8000
     },
     "1007":{
         "sr": 16000,
-        "n_mels": 180,
-        "win_length": 910,
-        "n_fft": 1180,
-        "hop_length": 100,
+        "n_mels": 90,
+        "win_length": 3150,
+        "n_fft": 3220,
+        "hop_length": 160,
         "f_max": 8000
     },
     "1008":{
         "sr": 16000,
-        "n_mels": 120,
-        "win_length": 2870,
-        "n_fft": 3210,
-        "hop_length": 50,
+        "n_mels": 150,
+        "win_length": 3930,
+        "n_fft": 4910,
+        "hop_length": 500,
         "f_max": 8000
     }
 

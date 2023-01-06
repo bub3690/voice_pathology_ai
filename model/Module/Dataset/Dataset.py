@@ -484,14 +484,7 @@ class svd_dataset_wav(Dataset):
                 data_path_list,
                 y_label_list,
                 classes,
-                mfcc_params,
                 mel_params,
-                spectro_params,
-                is_normalize,
-                norm_mean_list,
-                norm_std_list,
-                augmentation=[],
-                augment_params=dict(),
                 transform=None,
                 is_train=False,):
 
@@ -506,38 +499,32 @@ class svd_dataset_wav(Dataset):
         self.classes=classes
         self.transform=transform
 
-        # sweep params
-        self.mel_params = mel_params
-        self.spectro_params = spectro_params
-        self.mfcc_params = mfcc_params
-        #sr,n_mfcc,lifter, hop_length , win_length , n_mels , n_fft , f_max , batch_size
-
         self.is_train = is_train
 
+        # sweep params
+        self.mel_params = mel_params
+        #sr,n_mfcc,lifter, hop_length , win_length , n_mels , n_fft , f_max , batch_size        
+
         #noramlize 관련
-        self.is_normalize = is_normalize
-        if is_normalize:
-            self.normalize=transforms.Normalize((norm_mean_list[1],norm_mean_list[1],norm_mean_list[1]),(norm_std_list[1],norm_std_list[1],norm_std_list[1]))
-        else:
-            self.normalize=None
 
         #augmentation들
-        self.crop = None
-        self.spec_augment = None
-        self.augment_params = augment_params
+        # self.crop = None
+        # self.spec_augment = None
+        # self.augment_params = augment_params
         
-        if "crop" in augmentation:
-            self.crop = transforms.RandomApply([
-                                                Cutout(self.augment_params['crop'][0],
-                                                self.augment_params['crop'][1]),
-                                                ],
-                                                p = self.augment_params['crop'][2])
-        if "spec_augment" in augmentation:
-            self.spec_augment = transforms.RandomApply([
-                                                    transforms.Compose([T.TimeMasking(time_mask_param=self.augment_params['spec_augment'][0]),
-                                                                        T.FrequencyMasking(freq_mask_param=self.augment_params['spec_augment'][1]),],)
-                                               ],
-                                               p=self.augment_params['spec_augment'][2])
+        # 이부분을 모델로 옮겨야함. train 여부도 받아야함.
+        # if "crop" in augmentation:
+        #     self.crop = transforms.RandomApply([
+        #                                         Cutout(self.augment_params['crop'][0],
+        #                                         self.augment_params['crop'][1]),
+        #                                         ],
+        #                                         p = self.augment_params['crop'][2])
+        # if "spec_augment" in augmentation:
+        #     self.spec_augment = transforms.RandomApply([
+        #                                             transforms.Compose([T.TimeMasking(time_mask_param=self.augment_params['spec_augment'][0]),
+        #                                                                 T.FrequencyMasking(freq_mask_param=self.augment_params['spec_augment'][1]),],)
+        #                                        ],
+        #                                        p=self.augment_params['spec_augment'][2])
 
     def __len__(self):
         return len(self.path_list)
@@ -545,11 +532,7 @@ class svd_dataset_wav(Dataset):
     
     def __getitem__(self, idx):
         """
-        1. path를 받아서, 소리에서 mfcc를 추출
-        2. mfcc를 224프레임으로 패딩.
-        3. resnet에 사용되기 위해 3채널로 복사(rgb 처럼)
-        4. 0~1 정규화
-        
+        WAV 파일을 읽어서, MODEL에 전달.
         """
         sig = PhraseData.phrase_dict[ str(self.path_list[idx])+'-phrase.wav'] 
         #sig = preemphasis(sig)
@@ -576,7 +559,7 @@ class svd_dataset_wav(Dataset):
         
         origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
         
-        length = self.mfcc_params["sr"]*2 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        length = self.mel_params["sr"]*2 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
         pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
         sig = pad1d(sig,length)        
         
@@ -588,31 +571,6 @@ class svd_dataset_wav(Dataset):
         
         return sig, self.classes.index(self.label[idx])        
         
-        if self.transform:
-            mel_feature = self.transform(mel_feature).type(torch.float32)# 데이터 0~1 정규화
-            MSF = torch.stack([mel_feature, mel_feature, mel_feature])# 3채널로 복사.
-            MSF = MSF.squeeze(dim=1)    
-            
-            # global normalize
-            if self.normalize:
-                MSF = self.normalize(MSF)
-            
-
-            if self.is_train:
-                #spec augment
-                if self.crop:
-                    MSF = self.crop(MSF)
-                if self.spec_augment:
-                    MSF = self.spec_augment(MSF)
-
-        else:
-            pass
-            #print("else")
-            mel_feature = torch.from_numpy(mel_feature).type(torch.float32)
-            mel_feature=mel_feature.unsqueeze(0)#cnn 사용위해서 추가
-            #MFCCs = MFCCs.permute(2, 0, 1)
-        return MSF, self.classes.index(self.label[idx])
-
 
 #데이터 로더 제작 함수
 def load_data(
@@ -669,6 +627,35 @@ def load_data(
                                                     norm_std_list=norm_std_list,
                                                     #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
                                                     #mfcc_normalize=(53.5582, 217.43),
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )
+    elif model=='wav_phrase':
+        train_loader = DataLoader(dataset = svd_dataset_wav(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_normalize = is_normalize,
+                                                    is_train = True,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_normalize = is_normalize,
+                                                    is_train = True,
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
@@ -819,6 +806,20 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                         shuffle = True,
                                         #worker_init_fn=seed_worker
                                         ) # 순서가 암기되는것을 막기위해.
+    elif model=='wav_phrase':
+        test_loader = DataLoader(dataset = svd_dataset_wav(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_normalize = is_normalize,
+                                                    is_train = True,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
     elif model=='msf':
         test_loader = DataLoader(dataset =  svd_dataset_msf(
                                                     X_test,
