@@ -393,7 +393,7 @@ def main():
     train_accs = []
     valid_accs = []
 
-    for data_ind in range(1,6): 
+    for data_ind in range(1,6):
 
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         print(check_path)
@@ -415,7 +415,7 @@ def main():
         best_train_acc=0 # accuracy 기록용
         best_valid_acc=0
         
-        model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
+        model = model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=weight_decay)
         
