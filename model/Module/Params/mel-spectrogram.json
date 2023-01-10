@@ -1,10 +1,10 @@
 {
     "1004":{
         "sr": 16000,
-        "n_mels": 128,
-        "win_length": 400,
-        "n_fft": 400,
-        "hop_length": 100,
+        "n_mels": 140,
+        "win_length": 3400,
+        "n_fft": 4320,
+        "hop_length": 370,
         "f_max": 8000
     },
     "1005":{

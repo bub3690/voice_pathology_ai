@@ -534,7 +534,7 @@ class svd_dataset_wav(Dataset):
         """
         WAV 파일을 읽어서, MODEL에 전달.
         """
-        sig = PhraseData.phrase_dict[ str(self.path_list[idx])+'-phrase.wav'] 
+        sig = PhraseData.phrase_dict[ str(self.path_list[idx])+'-phrase.wav' ] 
         #sig = preemphasis(sig)
         
         origin_length = sig.shape[0]
@@ -546,26 +546,12 @@ class svd_dataset_wav(Dataset):
         
         length = self.mel_params["sr"]*2 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
         pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
-        sig = pad1d(sig,length)        
+        sig = pad1d(sig,length)
         
         ###signal norm
         sig = (sig-sig.mean())/sig.std()
         ###
 
-        origin_length = sig.shape[0]
-        
-        if sig.shape[0] > self.mfcc_params["sr"]*2:
-            origin_length = self.mfcc_params["sr"]*2
-        
-        origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
-        
-        length = self.mel_params["sr"]*2 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
-        pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
-        sig = pad1d(sig,length)        
-        
-        ###signal norm
-        sig = (sig-sig.mean())/sig.std()
-        ###
         sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
         sig=sig.unsqueeze(0)
         
@@ -639,7 +625,6 @@ def load_data(
                                                     classes,
                                                     mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
-                                                    is_normalize = is_normalize,
                                                     is_train = True,
                                                 ),
                                                 batch_size = BATCH_SIZE,
@@ -649,13 +634,11 @@ def load_data(
 
         validation_loader = DataLoader(dataset = 
                                                 svd_dataset_wav(
-                                                    X_train_list,
-                                                    Y_train_list,
+                                                    X_valid_list,
+                                                    Y_valid_list,
                                                     classes,
                                                     mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
-                                                    is_normalize = is_normalize,
-                                                    is_train = True,
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
@@ -813,8 +796,6 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                     classes,
                                                     mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
-                                                    is_normalize = is_normalize,
-                                                    is_train = True,
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
