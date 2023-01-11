@@ -50,6 +50,21 @@ def make_data(dataset):
                             os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle")
                             ]
         fusion_name_list = ["u_h","u_l","u_n"]
+    elif dataset == 'vowel_fusion':
+        fusion_file_list = [
+                            os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/a_low_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle"),
+
+                            os.path.abspath("../../voice_data/organics_ver2/i_high_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/i_low_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle"),
+
+                            os.path.abspath("../../voice_data/organics_ver2/u_high_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/u_low_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle"),
+                            ]        
+                            
     elif dataset == 'all_fusion':
         fusion_file_list = [
                             os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
@@ -74,7 +89,7 @@ def make_data(dataset):
         phras_file_path_abs = os.path.abspath(phras_file_path)
 
 
-    if dataset.split('_')[1] in 'fusion':
+    if len(dataset.split('_'))>1 and dataset.split('_')[1] in 'fusion':
         #fusion data 구성
         print("데이터 로드 " + dataset)
         data_instance = FusionData(fusion_file_list) #class에 데이터를 담아준다.

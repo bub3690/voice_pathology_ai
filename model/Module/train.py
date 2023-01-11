@@ -2,6 +2,8 @@
 """
 실행 명령어 : python train.py --batch-size 16 --wandb True --model baseline --normalize none --tag baseline --seed 1004 --descript "baseline resnet18 speaker independent"
 
+wav loader : python train.py --batch-size 16 --wandb True --model wav_res --tag baseline --seed 1004 --descript "baseline resnet18 speaker independent"
+
 """
 
 import wandb
@@ -20,7 +22,7 @@ import argparse
 
 from Utils.pytorchtools import EarlyStopping # 상위 폴더에 추가된 모듈.
 from Dataset.cv_spliter import cv_spliter #데이터 분할 모듈
-from Dataset.Data import PhraseData # phrase 데이터를 담아둔다.
+from Dataset.Data import make_data # phrase 데이터를 담아둔다.
 from Dataset.Dataset import load_data,load_test_data
 from Model.Models import model_initialize
 from Utils.Utils import get_mean_std
@@ -114,6 +116,36 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion):
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 answers +=label
                 predictions +=prediction
+    elif model_name == 'wav_res':
+        with torch.no_grad():
+            for image,label in test_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                test_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                answers +=label
+                predictions +=prediction
+    elif model_name == 'wav_res_latefusion':
+        with torch.no_grad():
+            for image,label in test_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                test_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                answers +=label
+                predictions +=prediction
+    elif model_name == 'wav_res_concat':
+        with torch.no_grad():
+            for image,label in test_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                test_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                answers +=label
+                predictions +=prediction
     elif model_name == 'msf':
         with torch.no_grad():
             for image,mfccs,label in test_loader:
@@ -154,6 +186,45 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
     correct = 0
     train_loss = 0
     if model_name == 'baseline':
+        for batch_idx,(image,label) in enumerate(train_loader):
+            image = image.to(DEVICE)
+            label = label.to(DEVICE)
+            #데이터들 장비에 할당
+            optimizer.zero_grad() # device 에 저장된 gradient 제거
+            output = model(image) # model로 output을 계산
+            loss = criterion(output, label) #loss 계산
+            train_loss += loss.item()
+            prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+            correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+            loss.backward() # loss 값을 이용해 gradient를 계산
+            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
+    elif model_name == 'wav_res':
+        for batch_idx,(image,label) in enumerate(train_loader):
+            image = image.to(DEVICE)
+            label = label.to(DEVICE)
+            #데이터들 장비에 할당
+            optimizer.zero_grad() # device 에 저장된 gradient 제거
+            output = model(image) # model로 output을 계산
+            loss = criterion(output, label) #loss 계산
+            train_loss += loss.item()
+            prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+            correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+            loss.backward() # loss 값을 이용해 gradient를 계산
+            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
+    elif model_name == 'wav_res_latefusion':
+        for batch_idx,(image,label) in enumerate(train_loader):
+            image = image.to(DEVICE)
+            label = label.to(DEVICE)
+            #데이터들 장비에 할당
+            optimizer.zero_grad() # device 에 저장된 gradient 제거
+            output = model(image) # model로 output을 계산
+            loss = criterion(output, label) #loss 계산
+            train_loss += loss.item()
+            prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+            correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+            loss.backward() # loss 값을 이용해 gradient를 계산
+            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
+    elif model_name == 'wav_res_concat':
         for batch_idx,(image,label) in enumerate(train_loader):
             image = image.to(DEVICE)
             label = label.to(DEVICE)
@@ -228,6 +299,36 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
                 #true.false값을 sum해줌. item
+    elif model_name == 'wav_res':
+        with torch.no_grad():
+            for image,label in valid_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                valid_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+                #true.false값을 sum해줌. item
+    elif model_name == 'wav_res_latefusion':
+        with torch.no_grad():
+            for image,label in valid_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                valid_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+                #true.false값을 sum해줌. item
+    elif model_name == 'wav_res_concat':
+        with torch.no_grad():
+            for image,label in valid_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                valid_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+                #true.false값을 sum해줌. item
     elif model_name =='msf':
         with torch.no_grad():
             for image,mfccs,label in valid_loader:
@@ -281,7 +382,9 @@ def main():
     parser.add_argument('--wandb',type=bool, default=False,
                         help='Use wandb log')                        
     parser.add_argument('--model',type=str, default='baseline',
-                        help='list : [msf, baseline]')
+                        help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,wav_res_concat_allfusion]')
+    parser.add_argument('--dataset',type=str, default='phrase',
+                        help='list : [phrase, a_h, a_n, a_l, a_fusion ... ]')
     parser.add_argument('--name',type=str, default='res18',
                             help='write custom model for wandb')
     parser.add_argument('--normalize',type=bool,default=False,
@@ -289,7 +392,7 @@ def main():
     parser.add_argument('--project-name',type=str, default='SVD-voice-disorder',
                             help='project name for wandb')
     parser.add_argument("--augment", nargs='+', type=str,help="[crop,spec_augment]",default=[])
-    parser.add_argument('--tag',type=str,default=None,help='tag for wandb')
+    parser.add_argument('--tag',type=str,default='',nargs='+',help='tag for wandb')
     parser.add_argument('--seed',type=int,default=1004,help='set the test seed')
     parser.add_argument('--descript',type=str, default='baseline. speaker indep',
                             help='write config for wandb')
@@ -299,7 +402,7 @@ def main():
 
     if args.wandb:
         project_name = args.project_name
-        wandb.init(project=project_name, entity="bub3690",tags=[args.tag],settings=wandb.Settings(_disable_stats=True))
+        wandb.init(project=project_name, entity="bub3690",tags=args.tag,settings=wandb.Settings(_disable_stats=True))
         wandb_run_name = args.model+'_'+args.name+'_norm_'+str(args.normalize).lower()+'_seed_'+str(args.seed)
         wandb.run.name = wandb_run_name
         wandb.run.save()
@@ -320,7 +423,7 @@ def main():
     
 
     
-    speaker_file_path = "../../voice_data/only_organics_healthy_available.xlsx"
+    speaker_file_path = "../../voice_data/only_organics_healthy_available_ver2.xlsx" # 퓨전셋에 맞게 01.10 수정
     speaker_file_path_abs = os.path.abspath(speaker_file_path)
 
     X_train_list, X_valid_list, X_test, Y_train_list, Y_valid_list, Y_test = cv_spliter(random_state,speaker_file_path_abs)
@@ -352,11 +455,7 @@ def main():
             "특이사항":args.descript,
         })
 
-    phras_file_path = "../../voice_data/organics/phrase_sig_dict.pickle"
-    phras_file_path_abs = os.path.abspath(phras_file_path)
-
-    print("데이터 로드")
-    data_instance = PhraseData(phras_file_path_abs) #class에 데이터를 담아준다.
+    data_instance=make_data(args.dataset) # pickle file 로드
     
 
     ## hyp-parameter
@@ -392,10 +491,10 @@ def main():
 
     train_accs = []
     valid_accs = []
-
+    wrong_samples = [] # valid에서 틀린 샘플의 이름을 담아준다.
     for data_ind in range(1,6):
 
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         print(check_path)
         early_stopping = EarlyStopping(patience = 5, verbose = True, path=check_path)
         train_loader,validation_loader = load_data( X_train_list[data_ind-1],
@@ -410,6 +509,7 @@ def main():
                                                     norm_mean_list,
                                                     norm_std_list,
                                                     args.model,
+                                                    args.dataset,
                                                     args.augment,
                                                     augment_params)
         best_train_acc=0 # accuracy 기록용
@@ -499,7 +599,8 @@ def main():
         args.normalize,
         norm_mean_list,
         norm_std_list,
-        args.model)
+        args.model,
+        args.dataset)
 
 
     cf = np.zeros((2,2))
@@ -510,7 +611,7 @@ def main():
 
     for data_ind in range(1,6):
         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         model.load_state_dict(torch.load(check_path))
 
         predictions,answers,test_loss = test_evaluate(model,args.model,test_loader, DEVICE, criterion)
