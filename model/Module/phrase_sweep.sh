@@ -1,0 +1,3 @@
+python train_sweep.py --batch-size 16 --wandb True --model wav_res --dataset phrase --tag baseline --seed 1006 --descript "baseline resnet18 speaker independent"
+python train_sweep.py --batch-size 16 --wandb True --model wav_res --dataset phrase --tag baseline --seed 1007 --descript "baseline resnet18 speaker independent"
+python train_sweep.py --batch-size 16 --wandb True --model wav_res --dataset phrase --tag baseline --seed 1008 --descript "baseline resnet18 speaker independent"
