@@ -998,7 +998,7 @@ class svd_dataset_wav_concat_allfusion(Dataset):
         
         length = 16000*4 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
         pad1d = lambda a, i: a[:,0:i] if a.shape[1] > i else torch.hstack((a, torch.zeros((1,i-a.shape[1]))))        
-        sig = pad1d(sig,length)        
+        sig = pad1d(sig,length)
         #print(sig.size())
 
         sig_tensor_fusion.append(sig)
