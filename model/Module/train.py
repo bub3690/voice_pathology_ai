@@ -25,7 +25,7 @@ from Dataset.cv_spliter import cv_spliter #데이터 분할 모듈
 from Dataset.Data import make_data # phrase 데이터를 담아둔다.
 from Dataset.Dataset import load_data,load_test_data
 from Model.Models import model_initialize
-from Utils.Utils import get_mean_std
+from Utils.Utils import get_mean_std,save_result
 
 
 
@@ -100,11 +100,16 @@ import matplotlib.pyplot as plt
 
 #confusion matrix 계산
 #test set 계산.
-def test_evaluate(model,model_name,test_loader,DEVICE,criterion):
+def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=False):
     model.eval()
     test_loss = 0
     predictions = []
     answers = []
+
+    #save result용
+    output_list = []
+    file_list = []
+
     #no_grad : 그래디언트 값 계산 막기.
     if model_name == 'baseline':
         with torch.no_grad():
@@ -118,7 +123,7 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion):
                 predictions +=prediction
     elif model_name == 'wav_res':
         with torch.no_grad():
-            for image,label in test_loader:
+            for image,label,path_list in test_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
                 output = model(image)
@@ -126,6 +131,11 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion):
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 answers +=label
                 predictions +=prediction
+
+                #save result
+                softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
+                output_list+= softmax_outputs
+                file_list += path_list
     elif model_name == 'wav_res_latefusion':
         with torch.no_grad():
             for image,label in test_loader:
@@ -176,7 +186,12 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion):
                 test_loss += criterion(output, label).item()
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 answers +=label
-                predictions +=prediction    
+                predictions +=prediction
+    
+    if save_result:
+        print("save result")
+        return predictions,answers,test_loss,output_list,file_list
+
     return predictions,answers,test_loss
 
 
@@ -199,7 +214,7 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     elif model_name == 'wav_res':
-        for batch_idx,(image,label) in enumerate(train_loader):
+        for batch_idx,(image,label,path_list) in enumerate(train_loader):
             image = image.to(DEVICE)
             label = label.to(DEVICE)
             #데이터들 장비에 할당
@@ -301,13 +316,17 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 #true.false값을 sum해줌. item
     elif model_name == 'wav_res':
         with torch.no_grad():
-            for image,label in valid_loader:
+            for image,label,path_list in valid_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
                 output = model(image)
+                #print(F.softmax(output))
+                #print(output.size())
                 valid_loss += criterion(output, label).item()
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+                #print(prediction.eq(label.view_as(prediction)))
+                #print(path_list)
                 #true.false값을 sum해줌. item
     elif model_name == 'wav_res_latefusion':
         with torch.no_grad():
@@ -394,6 +413,7 @@ def main():
     parser.add_argument("--augment", nargs='+', type=str,help="[crop,spec_augment]",default=[])
     parser.add_argument('--tag',type=str,default='',nargs='+',help='tag for wandb')
     parser.add_argument('--seed',type=int,default=1004,help='set the test seed')
+    parser.add_argument('--save-result',type=bool,default=False,help='save result of validation set')
     parser.add_argument('--descript',type=str, default='baseline. speaker indep',
                             help='write config for wandb')
 
@@ -491,7 +511,8 @@ def main():
 
     train_accs = []
     valid_accs = []
-    wrong_samples = [] # valid에서 틀린 샘플의 이름을 담아준다.
+
+
     for data_ind in range(1,6):
 
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
@@ -561,17 +582,80 @@ def main():
                 valid_accs.append(best_valid_acc)
             #scheduler.step()
             #print(scheduler.get_last_lr())
-
+        # if args.save_result:
+        #     print("save valid result")
+        #     model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
+        #     check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+        #     model.load_state_dict(torch.load(check_path))            
+        #     test_loader = load_test_data(
+        #                                     X_valid_list[data_ind-1],
+        #                                     Y_valid_list[data_ind-1],
+        #                                     BATCH_SIZE,
+        #                                     spectro_run_config,
+        #                                     mel_run_config,
+        #                                     mfcc_run_config,    
+        #                                     args.normalize,
+        #                                     norm_mean_list,
+        #                                     norm_std_list,
+        #                                     args.model,
+        #                                     args.dataset
+        #                                 )
+        #     predictions,answers,test_loss,validation_outputs,validation_files = test_evaluate(model,args.model,test_loader, DEVICE, criterion,save_result=True)
+            
+        #     print(validation_files)
+        #     print(predictions)
+        #     print(answers)
+        #     print(validation_outputs)        
 
     # # Model 결과 확인
-
-
     sum_valid=0
     for data_ind in range(5):
         print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
         sum_valid+=valid_accs[data_ind]
         
     print("평균 검증 정확도",sum_valid/5,"%")
+    
+
+    # validation result
+
+    # for save result
+    all_filename = []
+    all_prediction= []
+    all_answers= []
+    all_probs = []
+
+    if args.save_result:
+        print("save valid result")
+        for data_ind in range(1,6):
+            model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
+            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+            model.load_state_dict(torch.load(check_path))            
+            test_loader = load_test_data(
+                                            X_valid_list[data_ind-1],
+                                            Y_valid_list[data_ind-1],
+                                            BATCH_SIZE,
+                                            spectro_run_config,
+                                            mel_run_config,
+                                            mfcc_run_config,    
+                                            args.normalize,
+                                            norm_mean_list,
+                                            norm_std_list,
+                                            args.model,
+                                            args.dataset
+                                        )
+            predictions,answers,test_loss,validation_outputs,validation_files = test_evaluate(model,args.model,test_loader, DEVICE, criterion,save_result=True)
+
+            all_filename.append(validation_files)
+            all_prediction.append(predictions)
+            all_answers.append(answers)
+            all_probs.append(validation_outputs)
+            #import pdb;pdb.set_trace()
+        save_result(all_filename,all_prediction, all_answers,all_probs,speaker_file_path_abs,args)
+
+
+
+
+
 
 
     # # Model Test

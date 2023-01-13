@@ -53,7 +53,7 @@ def cv_spliter(random_state,file_path):
     print("총 데이터수 : ",len(X))
     Y = [] # 라벨
     for idx,x in enumerate(X):
-        if idx<427:
+        if idx<len(pathology):
             Y.append("pathology")
         else:
             Y.append("healthy")
@@ -116,10 +116,10 @@ def cv_spliter(random_state,file_path):
 
 
 
-    # # speaker to voice
-
-
     # speaker to voice
+
+    label_changer = dict({"healthy":"n","pathology":"p"})
+
 
     all_train_record_list = []
     all_valid_record_list = []
@@ -129,38 +129,58 @@ def cv_spliter(random_state,file_path):
     all_valid_label_list = []
     all_test_label_list = []
 
+    print("train. speaker to voice")
     #train
     for fold_idx,fold in enumerate(X_train_list):
         fold_record=[]
         fold_y_record=[]
         for idx,speaker in enumerate(fold):
-            record_list = speaker_data[speaker_data['SPEAKER']==speaker]['RECORDING'].tolist()
-            label_list = [ Y_train_list[fold_idx][idx] ] * len(record_list)
-            
+            record_list = speaker_data[ (speaker_data['SPEAKER']==speaker) & (speaker_data['PATHOLOGY']==label_changer[Y_train_list[fold_idx][idx]])]['RECORDING'].tolist()
+            if record_list == []:
+                # speaker가 healthy, pathology 모두 있는 경우
+                #print(speaker)
+                speaker = speaker // 100
+                record_list = speaker_data[(speaker_data['SPEAKER']==speaker) & (speaker_data['PATHOLOGY']==label_changer[Y_train_list[fold_idx][idx]] ) ]['RECORDING'].tolist()
+                #print(record_list)
+
+            label_list = [ Y_train_list[fold_idx][idx] ] * len(record_list)       
             fold_record += record_list
             fold_y_record += label_list
         all_train_record_list.append(fold_record)
         all_train_label_list.append(fold_y_record)
 
-        
+    print("valid. speaker to voice")
     #valid
     for fold_idx,fold in enumerate(X_valid_list):
         fold_record=[]
         fold_y_record=[]
         for idx,speaker in enumerate(fold):
-            record_list = speaker_data[speaker_data['SPEAKER']==speaker]['RECORDING'].tolist()
+            record_list = speaker_data[ (speaker_data['SPEAKER']==speaker) & (speaker_data['PATHOLOGY']==label_changer[Y_valid_list[fold_idx][idx]]) ]['RECORDING'].tolist()
+            if record_list == []:
+                # speaker가 healthy, pathology 모두 있는 경우
+                #print(speaker)
+                speaker = speaker // 100
+                record_list = speaker_data[(speaker_data['SPEAKER']==speaker) & (speaker_data['PATHOLOGY']==label_changer[Y_valid_list[fold_idx][idx]] ) ]['RECORDING'].tolist()
+                #print(record_list)
             label_list = [ Y_valid_list[fold_idx][idx] ] * len(record_list)
             
             fold_record += record_list
             fold_y_record += label_list
         all_valid_record_list.append(fold_record)
         all_valid_label_list.append(fold_y_record)
-        
+
+    print("test. speaker to voice")
     #test
     fold_record=[]
     fold_y_record=[]
     for idx,speaker in enumerate(X_test):
-        record_list = speaker_data[speaker_data['SPEAKER']==speaker]['RECORDING'].tolist()
+        record_list = speaker_data[(speaker_data['SPEAKER']==speaker) & (speaker_data['PATHOLOGY']==label_changer[Y_test[idx]] )]['RECORDING'].tolist()
+        if record_list == []:
+            # speaker가 healthy, pathology 모두 있는 경우
+            #print(speaker)
+            speaker = speaker // 100
+            record_list = speaker_data[(speaker_data['SPEAKER']==speaker) & (speaker_data['PATHOLOGY']==label_changer[Y_test[idx]] ) ]['RECORDING'].tolist()
+            #print(record_list)
         label_list = [ Y_test[idx] ] * len(record_list)
         fold_record += record_list
         fold_y_record += label_list
@@ -175,6 +195,8 @@ def cv_spliter(random_state,file_path):
     Y_train_list = all_train_label_list
     Y_valid_list = all_valid_label_list
     Y_test = all_test_label_list
+
+
 
 
 

@@ -1,5 +1,6 @@
 import librosa
 from Dataset.Data import PhraseData
+import pandas as pd
 import numpy as np
 import torch
 import torchaudio.transforms as T
@@ -112,3 +113,29 @@ def get_mean_std(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,
         spectro_std = data_list.std()
 
     return spectro_mean,spectro_std
+
+
+def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file_path_abs,args):
+    fold_excel = []
+    for i in range(5):
+        fold_excel.append(pd.DataFrame({'filename':all_filename[i],
+                    'prediction':[data.cpu().numpy().item() for data in all_prediction[i]],
+                    'answer':[ data.cpu().numpy().item() for data in all_answers[i]],
+                    'prob':[ data.cpu().numpy().item() for data in all_probs[i]],
+                    'fold':i+1}))
+    #print(fold_excel)
+    #import pdb;pdb.set_trace()
+    
+    fold_excel_all=pd.concat(fold_excel,axis=0)
+    
+    answer_paper=pd.read_excel(speaker_file_path_abs)
+    answer_paper['RECORDING']=answer_paper['RECORDING'].values.astype(str)
+    #answer_paper[['RECORDING','DETAIL','AGE']]
+    merge_left = pd.merge(fold_excel_all,answer_paper[['RECORDING','DETAIL','AGE']], how='left', left_on='filename', right_on='RECORDING')
+    merge_left.drop(['RECORDING'],axis=1,inplace=True)
+    merge_left['result']=merge_left['prediction']==merge_left['answer']
+    merge_left['filename']=merge_left['filename'].values.astype(int)
+    merge_left = merge_left[['filename','fold','AGE','DETAIL','prediction','answer','prob','result']]
+    excel_name = 'D:/project/voice_pathology_ai/voice_data/results/'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_organics_speaker.xlsx'
+    merge_left.to_excel(excel_name,index=False)
+
