@@ -247,6 +247,8 @@ class Resnet_wav_latefusion(nn.Module):
         return out
 
 
+
+
 class Resnet_wav_latefusion_all(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(Resnet_wav_latefusion_all, self).__init__()
@@ -328,7 +330,86 @@ class Resnet_wav_latefusion_all(nn.Module):
 
         return out
 
+class Resnet_wav_latefusion_all_testing(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(Resnet_wav_latefusion_all, self).__init__()
 
+        self.res_phrase = models.resnet18(pretrained=True).cuda()
+        self.res_a = models.resnet18(pretrained=True).cuda()
+        #self.res_i = models.resnet18(pretrained=True).cuda()
+        #self.res_u = models.resnet18(pretrained=True).cuda()
+        #self.num_ftrs = self.model.fc.out_features
+
+        self.num_ftrs = self.res_phrase.fc.out_features
+
+        self.pad1d = lambda a, i: a[0:i] if a.shape[0] > i else torch.hstack((a, torch.zeros((i-a.shape[0]))))   
+
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+
+        self.fc = nn.Sequential(       
+                            nn.Linear(self.num_ftrs*4, self.num_ftrs),
+                            nn.BatchNorm1d(self.num_ftrs),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(self.num_ftrs,128),
+                            nn.BatchNorm1d(128),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(128,64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,2),
+                            )
+
+
+    def forward(self, x_list):
+        # phrase, a, i ,u 순으로 입력
+        mel_phrase = self.mel_scale(x_list[:,0,...])
+        mel_phrase = torchaudio.functional.amplitude_to_DB(mel_phrase,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_phrase)) )
+        mel_phrase = torch.squeeze(mel_phrase,dim=1)
+
+        mel_a = self.mel_scale(x_list[:,1,...])
+        mel_a = torchaudio.functional.amplitude_to_DB(mel_a,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_a)) )
+        mel_a = torch.squeeze(mel_a,dim=1)
+
+        mel_i = self.mel_scale(x_list[:,2,...])
+        mel_i = torchaudio.functional.amplitude_to_DB(mel_i,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_i)) )
+        mel_i = torch.squeeze(mel_i,dim=1)
+
+        mel_u = self.mel_scale(x_list[:,3,...])
+        mel_u = torchaudio.functional.amplitude_to_DB(mel_u,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_u)) )
+        mel_u = torch.squeeze(mel_u,dim=1)
+
+        out_phrase = torch.stack([mel_phrase,mel_phrase,mel_phrase],axis=1)
+        out_a = torch.stack([mel_a,mel_a,mel_a],axis=1)
+        out_i = torch.stack([mel_i,mel_i,mel_i],axis=1)
+        out_u = torch.stack([mel_u,mel_u,mel_u],axis=1)
+
+        #print(out.size())
+        out_phrase=self.res_phrase(out_phrase)
+        out_a=self.res_a(out_a)
+        out_i=self.res_a(out_i)
+        out_u=self.res_a(out_u)
+
+        out = torch.cat([out_phrase,out_a,out_i,out_u],axis=1)
+        out = self.fc(out)
+
+        return out
 
 class MSF(nn.Module):
     def __init__(self,n_mfcc):
@@ -406,12 +487,12 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
     elif model_name=='wav_res_latefusion':
         model = Resnet_wav_latefusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name=='wav_res_concat':
-        model = Attention_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
-        #model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
-    elif model_name=='wav_res_concat_fusion': # vowel들 concat + latefusion
+        #model = Attention_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_res_concat_latefusion': # vowel들 concat + latefusion
         model = Resnet_wav_latefusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'wav_res_concat_allfusion':
-        model = Resnet_wav_latefusion_all(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = Resnet_wav_latefusion_all_testing(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'baseline':
         model = ResLayer().cuda()
     elif model_name == 'decomp':

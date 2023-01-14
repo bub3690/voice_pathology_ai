@@ -644,7 +644,7 @@ class svd_dataset_wav_fusion(Dataset):
             sig_tensor.append(sig)
         sig_tensor = torch.stack(sig_tensor)
 
-        return sig_tensor, self.classes.index(self.label[idx])
+        return sig_tensor, self.classes.index(self.label[idx]), str(self.path_list[idx])
 
 class svd_dataset_wav_concat(Dataset):
     def __init__(self,
@@ -733,7 +733,7 @@ class svd_dataset_wav_concat(Dataset):
         sig_tensor = pad1d(sig_tensor,length)
 
 
-        return sig_tensor, self.classes.index(self.label[idx])
+        return sig_tensor, self.classes.index(self.label[idx]), str(self.path_list[idx])
 
 class svd_dataset_wav_concat_latefusion(Dataset):
     """
@@ -830,7 +830,7 @@ class svd_dataset_wav_concat_latefusion(Dataset):
             sig_tensor_fusion.append(sig_tensor)
         sig_tensor_fusion = torch.stack(sig_tensor_fusion)
 
-        return sig_tensor_fusion, self.classes.index(self.label[idx])
+        return sig_tensor_fusion, self.classes.index(self.label[idx]), str(self.path_list[idx])
 
 class svd_dataset_wav_concat_allfusion(Dataset):
     """
@@ -958,7 +958,7 @@ class svd_dataset_wav_concat_allfusion(Dataset):
             sig_tensor_fusion.append(sig_tensor)
         sig_tensor_fusion = torch.stack(sig_tensor_fusion)
 
-        return sig_tensor_fusion, self.classes.index(self.label[idx])
+        return sig_tensor_fusion, self.classes.index(self.label[idx]), str(self.path_list[idx])
 
 
 
@@ -1107,7 +1107,7 @@ def load_data(
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 )
-    elif model=='wav_res_concat_fusion':
+    elif model=='wav_res_concat_latefusion':
         train_loader = DataLoader(dataset = svd_dataset_wav_concat_latefusion(
                                                     X_train_list,
                                                     Y_train_list,
@@ -1347,7 +1347,7 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.     
-    elif model=='wav_res_concat_fusion':
+    elif model=='wav_res_concat_latefusion':
         test_loader = DataLoader(dataset = svd_dataset_wav_concat_latefusion(
                                                     X_test,
                                                     Y_test,

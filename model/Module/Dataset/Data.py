@@ -89,7 +89,7 @@ def make_data(dataset):
         phras_file_path_abs = os.path.abspath(phras_file_path)
 
 
-    if len(dataset.split('_'))>1 and dataset.split('_')[1] in 'fusion':
+    if len(dataset.split('_'))>1 and 'fusion' in dataset.split('_')[1]:
         #fusion data 구성
         print("데이터 로드 " + dataset)
         data_instance = FusionData(fusion_file_list) #class에 데이터를 담아준다.
