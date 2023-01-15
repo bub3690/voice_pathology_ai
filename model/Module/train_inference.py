@@ -110,6 +110,8 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
     output_list = []
     file_list = []
 
+    attentions = []
+
     #no_grad : 그래디언트 값 계산 막기.
     if model_name == 'baseline':
         with torch.no_grad():
@@ -173,7 +175,7 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
             for image,label,path_list in test_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
-                output = model(image)
+                output = model(image,train=False)
                 test_loss += criterion(output, label).item()
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 answers +=label
@@ -198,36 +200,23 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
                 output_list+= softmax_outputs
                 file_list += path_list
-    elif model_name == 'wav_res_concat_2wav':
-        with torch.no_grad():
-            for image,label,path_list in test_loader:
-                image = image.to(DEVICE)
-                label = label.to(DEVICE)
-                output = model(image)
-                test_loss += criterion(output, label).item()
-                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
-                answers +=label
-                predictions +=prediction
-
-                #save result
-                softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
-                output_list+= softmax_outputs
-                file_list += path_list
     elif model_name == 'wav_res_concat_allfusion_attention':
         with torch.no_grad():
             for image,label,path_list in test_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
-                output = model(image)
+                output,attention_score = model(image)
                 test_loss += criterion(output, label).item()
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 answers +=label
                 predictions +=prediction
 
                 #save result
+                attentions +=attention_score
                 softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
                 output_list+= softmax_outputs
                 file_list += path_list
+            return predictions,answers,test_loss,attentions,file_list
     elif model_name == 'msf':
         with torch.no_grad():
             for image,mfccs,label in test_loader:
@@ -338,19 +327,6 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     elif model_name == 'wav_res_concat_allfusion':
-        for batch_idx,(image,label,path_list) in enumerate(train_loader):
-            image = image.to(DEVICE)
-            label = label.to(DEVICE)
-            #데이터들 장비에 할당
-            optimizer.zero_grad() # device 에 저장된 gradient 제거
-            output = model(image) # model로 output을 계산
-            loss = criterion(output, label) #loss 계산
-            train_loss += loss.item()
-            prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
-            correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
-            loss.backward() # loss 값을 이용해 gradient를 계산
-            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
-    elif model_name == 'wav_res_concat_2wav':
         for batch_idx,(image,label,path_list) in enumerate(train_loader):
             image = image.to(DEVICE)
             label = label.to(DEVICE)
@@ -482,16 +458,6 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
                 #true.false값을 sum해줌. item
-    elif model_name == 'wav_res_concat_2wav':
-        with torch.no_grad():
-            for image,label,path_list in valid_loader:
-                image = image.to(DEVICE)
-                label = label.to(DEVICE)
-                output = model(image)
-                valid_loss += criterion(output, label).item()
-                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
-                correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
-                #true.false값을 sum해줌. item
     elif model_name == 'wav_res_concat_allfusion':
         with torch.no_grad():
             for image,label,path_list in valid_loader:
@@ -565,8 +531,7 @@ def main():
     parser.add_argument('--wandb',type=bool, default=False,
                         help='Use wandb log')                        
     parser.add_argument('--model',type=str, default='baseline',
-                        help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,\
-                            wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_2wav,wav_]')
+                        help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,wav_res_concat_allfusion,wav_res_concat_allfusion_attention]')
     parser.add_argument('--dataset',type=str, default='phrase',
                         help='list : [phrase, a_h, a_n, a_l, a_fusion ... ]')
     parser.add_argument('--name',type=str, default='res18',
@@ -670,152 +635,152 @@ def main():
         print("std : ",norm_std_list)
     
 
-    ##### 10. 학습 및 평가.
-    # resnet18 pretrained true
-    # kfold 적용
+    # ##### 10. 학습 및 평가.
+    # # resnet18 pretrained true
+    # # kfold 적용
 
-    train_accs = []
-    valid_accs = []
+    # train_accs = []
+    # valid_accs = []
 
 
-    for data_ind in range(1,6):
+    # for data_ind in range(1,6):
 
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
-        print(check_path)
-        early_stopping = EarlyStopping(patience = 5, verbose = True, path=check_path)
-        train_loader,validation_loader = load_data( X_train_list[data_ind-1],
-                                                    X_valid_list[data_ind-1],
-                                                    Y_train_list[data_ind-1],
-                                                    Y_valid_list[data_ind-1],
-                                                    BATCH_SIZE,
-                                                    spectro_run_config,
-                                                    mel_run_config,
-                                                    mfcc_run_config,
-                                                    args.normalize,
-                                                    norm_mean_list,
-                                                    norm_std_list,
-                                                    args.model,
-                                                    args.dataset,
-                                                    args.augment,
-                                                    augment_params)
-        best_train_acc=0 # accuracy 기록용
-        best_valid_acc=0
+    #     check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+    #     print(check_path)
+    #     early_stopping = EarlyStopping(patience = 5, verbose = True, path=check_path)
+    #     train_loader,validation_loader = load_data( X_train_list[data_ind-1],
+    #                                                 X_valid_list[data_ind-1],
+    #                                                 Y_train_list[data_ind-1],
+    #                                                 Y_valid_list[data_ind-1],
+    #                                                 BATCH_SIZE,
+    #                                                 spectro_run_config,
+    #                                                 mel_run_config,
+    #                                                 mfcc_run_config,
+    #                                                 args.normalize,
+    #                                                 norm_mean_list,
+    #                                                 norm_std_list,
+    #                                                 args.model,
+    #                                                 args.dataset,
+    #                                                 args.augment,
+    #                                                 augment_params)
+    #     best_train_acc=0 # accuracy 기록용
+    #     best_valid_acc=0
         
-        model = model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=weight_decay)
+    #     model = model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
+    #     criterion = nn.CrossEntropyLoss()
+    #     optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=weight_decay)
         
-        print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))
-        for Epoch in range(1,EPOCHS+1):
-            train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,criterion)
-            valid_loss,valid_accuracy = evaluate(model,args.model,validation_loader,DEVICE,criterion)
+    #     print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))
+    #     for Epoch in range(1,EPOCHS+1):
+    #         train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,criterion)
+    #         valid_loss,valid_accuracy = evaluate(model,args.model,validation_loader,DEVICE,criterion)
             
-            logger_valid_acc = "valid {}fold Accuracy".format(data_ind)
-            logger_train_acc = "train {}fold Accuracy".format(data_ind)
-            logger_valid_loss = "valid {}fold loss".format(data_ind)
-            logger_train_loss = "train {}fold loss".format(data_ind)
-            
-
-            if args.wandb:
-                wandb.log({
-                        #logger_train_acc :train_accuracy,
-                        #logger_train_loss : train_loss,
-                        logger_valid_acc : valid_accuracy,
-                        logger_valid_loss : valid_loss},
-                        commit=False,
-                        step=Epoch)
-
-            print("\n[EPOCH:{}]\t Train Loss:{:.4f}\t Train Acc:{:.2f} %  | \tValid Loss:{:.4f} \tValid Acc: {:.2f} %\n".
-                format(Epoch,train_loss,train_accuracy,valid_loss,valid_accuracy))
+    #         logger_valid_acc = "valid {}fold Accuracy".format(data_ind)
+    #         logger_train_acc = "train {}fold Accuracy".format(data_ind)
+    #         logger_valid_loss = "valid {}fold loss".format(data_ind)
+    #         logger_train_loss = "train {}fold loss".format(data_ind)
             
 
-            early_stopping(valid_loss, model)
-            if -early_stopping.best_score == valid_loss:
-                best_train_acc, best_valid_acc = train_accuracy,valid_accuracy
-                if args.wandb:
-                    wandb.run.summary.update({"best_valid_{}fold_acc".format(data_ind) : best_valid_acc})
-            
-            if early_stopping.early_stop:
-                    train_accs.append(best_train_acc)
-                    valid_accs.append(best_valid_acc)
-                    print("[{} 교차검증] Early stopping".format(data_ind))
-                    break
+    #         if args.wandb:
+    #             wandb.log({
+    #                     #logger_train_acc :train_accuracy,
+    #                     #logger_train_loss : train_loss,
+    #                     logger_valid_acc : valid_accuracy,
+    #                     logger_valid_loss : valid_loss},
+    #                     commit=False,
+    #                     step=Epoch)
 
-            if Epoch==EPOCHS:
-                #만약 early stop 없이 40 epoch라서 중지 된 경우. 
-                train_accs.append(best_train_acc)
-                valid_accs.append(best_valid_acc)
-            #scheduler.step()
-            #print(scheduler.get_last_lr())
-        # if args.save_result:
-        #     print("save valid result")
-        #     model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        #     check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
-        #     model.load_state_dict(torch.load(check_path))            
-        #     test_loader = load_test_data(
-        #                                     X_valid_list[data_ind-1],
-        #                                     Y_valid_list[data_ind-1],
-        #                                     BATCH_SIZE,
-        #                                     spectro_run_config,
-        #                                     mel_run_config,
-        #                                     mfcc_run_config,    
-        #                                     args.normalize,
-        #                                     norm_mean_list,
-        #                                     norm_std_list,
-        #                                     args.model,
-        #                                     args.dataset
-        #                                 )
-        #     predictions,answers,test_loss,validation_outputs,validation_files = test_evaluate(model,args.model,test_loader, DEVICE, criterion,save_result=True)
+    #         print("\n[EPOCH:{}]\t Train Loss:{:.4f}\t Train Acc:{:.2f} %  | \tValid Loss:{:.4f} \tValid Acc: {:.2f} %\n".
+    #             format(Epoch,train_loss,train_accuracy,valid_loss,valid_accuracy))
             
-        #     print(validation_files)
-        #     print(predictions)
-        #     print(answers)
-        #     print(validation_outputs)        
 
-    # # Model 결과 확인
-    sum_valid=0
-    for data_ind in range(5):
-        print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
-        sum_valid+=valid_accs[data_ind]
+    #         early_stopping(valid_loss, model)
+    #         if -early_stopping.best_score == valid_loss:
+    #             best_train_acc, best_valid_acc = train_accuracy,valid_accuracy
+    #             if args.wandb:
+    #                 wandb.run.summary.update({"best_valid_{}fold_acc".format(data_ind) : best_valid_acc})
+            
+    #         if early_stopping.early_stop:
+    #                 train_accs.append(best_train_acc)
+    #                 valid_accs.append(best_valid_acc)
+    #                 print("[{} 교차검증] Early stopping".format(data_ind))
+    #                 break
+
+    #         if Epoch==EPOCHS:
+    #             #만약 early stop 없이 40 epoch라서 중지 된 경우. 
+    #             train_accs.append(best_train_acc)
+    #             valid_accs.append(best_valid_acc)
+    #         #scheduler.step()
+    #         #print(scheduler.get_last_lr())
+    #     # if args.save_result:
+    #     #     print("save valid result")
+    #     #     model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
+    #     #     check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+    #     #     model.load_state_dict(torch.load(check_path))            
+    #     #     test_loader = load_test_data(
+    #     #                                     X_valid_list[data_ind-1],
+    #     #                                     Y_valid_list[data_ind-1],
+    #     #                                     BATCH_SIZE,
+    #     #                                     spectro_run_config,
+    #     #                                     mel_run_config,
+    #     #                                     mfcc_run_config,    
+    #     #                                     args.normalize,
+    #     #                                     norm_mean_list,
+    #     #                                     norm_std_list,
+    #     #                                     args.model,
+    #     #                                     args.dataset
+    #     #                                 )
+    #     #     predictions,answers,test_loss,validation_outputs,validation_files = test_evaluate(model,args.model,test_loader, DEVICE, criterion,save_result=True)
+            
+    #     #     print(validation_files)
+    #     #     print(predictions)
+    #     #     print(answers)
+    #     #     print(validation_outputs)        
+
+    # # # Model 결과 확인
+    # sum_valid=0
+    # for data_ind in range(5):
+    #     print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
+    #     sum_valid+=valid_accs[data_ind]
         
-    print("평균 검증 정확도",sum_valid/5,"%")
+    # print("평균 검증 정확도",sum_valid/5,"%")
     
 
-    # validation result
+    # # validation result
 
-    # for save result
-    all_filename = []
-    all_prediction= []
-    all_answers= []
-    all_probs = []
+    # # for save result
+    # all_filename = []
+    # all_prediction= []
+    # all_answers= []
+    # all_probs = []
 
-    if args.save_result:
-        print("save valid result")
-        for data_ind in range(1,6):
-            model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
-            model.load_state_dict(torch.load(check_path))            
-            test_loader = load_test_data(
-                                            X_valid_list[data_ind-1],
-                                            Y_valid_list[data_ind-1],
-                                            BATCH_SIZE,
-                                            spectro_run_config,
-                                            mel_run_config,
-                                            mfcc_run_config,    
-                                            args.normalize,
-                                            norm_mean_list,
-                                            norm_std_list,
-                                            args.model,
-                                            args.dataset
-                                        )
-            predictions,answers,test_loss,validation_outputs,validation_files = test_evaluate(model,args.model,test_loader, DEVICE, criterion,save_result=True)
+    # if args.save_result:
+    #     print("save valid result")
+    #     for data_ind in range(1,6):
+    #         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
+    #         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+    #         model.load_state_dict(torch.load(check_path))            
+    #         test_loader = load_test_data(
+    #                                         X_valid_list[data_ind-1],
+    #                                         Y_valid_list[data_ind-1],
+    #                                         BATCH_SIZE,
+    #                                         spectro_run_config,
+    #                                         mel_run_config,
+    #                                         mfcc_run_config,    
+    #                                         args.normalize,
+    #                                         norm_mean_list,
+    #                                         norm_std_list,
+    #                                         args.model,
+    #                                         args.dataset
+    #                                     )
+    #         predictions,answers,test_loss,validation_outputs,validation_files = test_evaluate(model,args.model,test_loader, DEVICE, criterion,save_result=True)
 
-            all_filename.append(validation_files)
-            all_prediction.append(predictions)
-            all_answers.append(answers)
-            all_probs.append(validation_outputs)
-            #import pdb;pdb.set_trace()
-        save_result(all_filename,all_prediction, all_answers,all_probs,speaker_file_path_abs,args)
+    #         all_filename.append(validation_files)
+    #         all_prediction.append(predictions)
+    #         all_answers.append(answers)
+    #         all_probs.append(validation_outputs)
+    #         #import pdb;pdb.set_trace()
+    #     save_result(all_filename,all_prediction, all_answers,all_probs,speaker_file_path_abs,args)
 
 
 
@@ -854,14 +819,26 @@ def main():
     average_fscore = 0
     average_uar = 0
 
+    predictions_list=[]
+    answers_list=[]
+    attention_scores_list=[]
+    files= []
+
     for data_ind in range(1,6):
         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         model.load_state_dict(torch.load(check_path))
+        criterion = nn.CrossEntropyLoss()
 
-        predictions,answers,test_loss = test_evaluate(model,args.model,test_loader, DEVICE, criterion)
+        predictions,answers,test_loss,attention_scores,file_list = test_evaluate(model,args.model,test_loader, DEVICE, criterion)
         predictions=[ dat.cpu().numpy() for dat in predictions]
         answers=[ dat.cpu().numpy() for dat in answers]
+        attention_scores = [ dat.cpu().numpy() for dat in attention_scores]
+        
+        predictions_list.append(pd.DataFrame(predictions))
+        answers_list.append(pd.DataFrame(answers))
+        attention_scores_list.append(pd.DataFrame(attention_scores))
+        files.append(file_list)
 
         
         cf = confusion_matrix(answers, predictions)
@@ -895,6 +872,11 @@ def main():
     print("평균 acc : {:.4f}".format(average_accuracy/5))
     print("평균 UAR : {:.4f}".format(average_uar/5))
     print("평균 f1score : {:.4f}".format(average_fscore/5))
+    res_list=[]
+    for i in range(5):
+        res_list.append(pd.concat([predictions_list[i],answers_list[i],attention_scores_list[i],pd.DataFrame(files[i])],axis=1))
+    pd.concat(res_list).to_excel("./result.xlsx")
+
     if args.wandb:
         wandb.run.summary.update({"test 평균 acc" : average_accuracy/5})
         wandb.run.summary.update({"test 평균 f1" : average_fscore/5})

@@ -50,6 +50,39 @@ def make_data(dataset):
                             os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle")
                             ]
         fusion_name_list = ["u_h","u_l","u_n"]
+    elif dataset == 'aiu_n_fusion':
+        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle")
+                            ]
+    elif dataset == 'aiu_h_fusion':
+        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/i_high_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/u_high_dict_ver2.pickle")
+                            ]
+    elif dataset == 'aiu_l_fusion':
+        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/a_low_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/i_low_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/u_low_dict_ver2.pickle")
+                            ]
+    elif dataset == 'phrase_a_fusion':
+        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/a_low_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle")
+                            ]
+    elif dataset == 'phrase_i_fusion':
+        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/i_high_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/i_low_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle")
+                            ]
+    elif dataset == 'phrase_u_fusion':
+        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/u_high_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/u_low_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle")
+                            ]
     elif dataset == 'vowel_fusion':
         fusion_file_list = [
                             os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
@@ -89,7 +122,7 @@ def make_data(dataset):
         phras_file_path_abs = os.path.abspath(phras_file_path)
 
 
-    if len(dataset.split('_'))>1 and 'fusion' in dataset.split('_')[1]:
+    if len(dataset.split('_'))>1 and 'fusion' in dataset.split('_')[-1]:
         #fusion data 구성
         print("데이터 로드 " + dataset)
         data_instance = FusionData(fusion_file_list) #class에 데이터를 담아준다.
