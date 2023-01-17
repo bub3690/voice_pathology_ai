@@ -739,6 +739,134 @@ class svd_dataset_wav_concat(Dataset):
 
         return sig_tensor, self.classes.index(self.label[idx]), str(self.path_list[idx])
 
+class svd_dataset_wav_phrase_vowel_concat(Dataset):
+    """
+    phrase + 3pitch vowel
+    """
+    def __init__(self,
+                data_path_list,
+                y_label_list,
+                classes,
+                mel_params,
+                dataset='phrase_a_fusion',
+                transform=None,
+                is_train=False,):
+
+        #클래스에서 사용할 인자를 받아 인스턴스 변수로 저장하는 일을 한다.
+        #예를들면, 이미지의 경로 리스트를 저장하는 일을 하게 된다.
+        
+        #data_num : k 개 데이터 셋 중 어떤것을 쓸지
+        #test인지 아닌지.
+        
+        self.path_list = data_path_list
+        self.label = y_label_list # label data
+        self.classes=classes
+        self.transform=transform
+
+        self.is_train = is_train
+
+        # sweep params
+        self.mel_params = mel_params
+        #sr,n_mfcc,lifter, hop_length , win_length , n_mels , n_fft , f_max , batch_size        
+
+        self.dataset=dataset
+        #noramlize 관련
+
+        #augmentation들
+        # self.crop = None
+        # self.spec_augment = None
+        # self.augment_params = augment_params
+        
+        # 이부분을 모델로 옮겨야함. train 여부도 받아야함.
+        # if "crop" in augmentation:
+        #     self.crop = transforms.RandomApply([
+        #                                         Cutout(self.augment_params['crop'][0],
+        #                                         self.augment_params['crop'][1]),
+        #                                         ],
+        #                                         p = self.augment_params['crop'][2])
+        # if "spec_augment" in augmentation:
+        #     self.spec_augment = transforms.RandomApply([
+        #                                             transforms.Compose([T.TimeMasking(time_mask_param=self.augment_params['spec_augment'][0]),
+        #                                                                 T.FrequencyMasking(freq_mask_param=self.augment_params['spec_augment'][1]),],)
+        #                                        ],
+        #                                        p=self.augment_params['spec_augment'][2])
+
+    def __len__(self):
+        return len(self.path_list)
+        #데이터 셋의 길이를 정수로 반환한다.     
+    
+    def __getitem__(self, idx):
+        """
+        WAV 파일을 읽어서, MODEL에 전달.
+        """
+        
+        sig_tensor_fusion = []
+
+
+        #phrase fusion
+        wav_dict = FusionData.dict_list[0]
+        dataset_name=list(wav_dict.keys())[0].split("-")[1].split(".wav")[0]
+        sig = wav_dict[ str(self.path_list[idx])+'-'+dataset_name+'.wav' ] 
+        #sig = preemphasis(sig)
+        
+        origin_length = sig.shape[0]
+        
+        #if sig.shape[0] > self.mel_params["sr"]*2:
+        #    origin_length = self.mel_params["sr"]*2
+        
+        origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
+        
+        ###signal norm
+        sig = (sig-sig.mean())/sig.std()
+        ###
+
+        sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
+        sig=sig.unsqueeze(0)
+        
+        length = 16000*4 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        pad1d = lambda a, i: a[:,0:i] if a.shape[1] > i else torch.hstack((a, torch.zeros((1,i-a.shape[1]))))        
+        sig = pad1d(sig,length)
+        #print(sig.size())
+
+        sig_tensor_fusion.append(sig)
+
+
+        #vowel fusion
+
+        sig_tensor = []
+        for sig_ind in range(3):
+            wav_dict = FusionData.dict_list[sig_ind +1]
+            dataset_name=list(wav_dict.keys())[0].split("-")[1].split(".wav")[0]
+            sig = wav_dict[ str(self.path_list[idx])+'-'+dataset_name+'.wav' ] 
+            #sig = preemphasis(sig)
+            
+            origin_length = sig.shape[0]
+            
+            #if sig.shape[0] > self.mel_params["sr"]*2:
+            #    origin_length = self.mel_params["sr"]*2
+            
+            origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
+            
+            ###signal norm
+            sig = (sig-sig.mean())/sig.std()
+            ###
+
+            sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
+            sig=sig.unsqueeze(0)
+
+            sig_tensor.append(sig)
+            #print(sig.size())
+        sig_tensor = torch.concat(sig_tensor,dim=1)
+        #print(sig_tensor.size())
+        
+        length = 16000*4 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        pad1d = lambda a, i: a[:,0:i] if a.shape[1] > i else torch.hstack((a, torch.zeros((1,i-a.shape[1]))))        
+        sig_tensor = pad1d(sig_tensor,length)
+        sig_tensor_fusion.append(sig_tensor)
+        sig_tensor_fusion = torch.stack(sig_tensor_fusion)
+
+        return sig_tensor_fusion, self.classes.index(self.label[idx]), str(self.path_list[idx])
+
 class svd_dataset_wav_phrase_vowel_latefusion(Dataset):
     """
     phrase + 3pitch vowel
@@ -801,37 +929,70 @@ class svd_dataset_wav_phrase_vowel_latefusion(Dataset):
         """
         
         sig_tensor_fusion = []
-        for ind in range(3):
-            sig_tensor = []
-            for sig_ind in range(3):
-                wav_dict = FusionData.dict_list[ind*3 + sig_ind]
-                dataset_name=list(wav_dict.keys())[0].split("-")[1].split(".wav")[0]
-                sig = wav_dict[ str(self.path_list[idx])+'-'+dataset_name+'.wav' ] 
-                #sig = preemphasis(sig)
-                
-                origin_length = sig.shape[0]
-                
-                #if sig.shape[0] > self.mel_params["sr"]*2:
-                #    origin_length = self.mel_params["sr"]*2
-                
-                origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
-                
-                ###signal norm
-                sig = (sig-sig.mean())/sig.std()
-                ###
 
-                sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
-                sig=sig.unsqueeze(0)
 
-                sig_tensor.append(sig)
-                #print(sig.size())
-            sig_tensor = torch.concat(sig_tensor,dim=1)
-            #print(sig_tensor.size())
+        #phrase fusion
+        wav_dict = FusionData.dict_list[0]
+        dataset_name=list(wav_dict.keys())[0].split("-")[1].split(".wav")[0]
+        sig = wav_dict[ str(self.path_list[idx])+'-'+dataset_name+'.wav' ] 
+        #sig = preemphasis(sig)
+        
+        origin_length = sig.shape[0]
+        
+        #if sig.shape[0] > self.mel_params["sr"]*2:
+        #    origin_length = self.mel_params["sr"]*2
+        
+        origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
+        
+        ###signal norm
+        sig = (sig-sig.mean())/sig.std()
+        ###
+
+        sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
+        sig=sig.unsqueeze(0)
+        
+        length = 16000*3 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        pad1d = lambda a, i: a[:,0:i] if a.shape[1] > i else torch.hstack((a, torch.zeros((1,i-a.shape[1]))))        
+        sig = pad1d(sig,length)
+        #print(sig.size())
+
+        sig_tensor_fusion.append(sig)
+
+
+        #vowel fusion
+
+        sig_tensor = []
+        for sig_ind in range(3):
+            wav_dict = FusionData.dict_list[sig_ind +1]
+            dataset_name=list(wav_dict.keys())[0].split("-")[1].split(".wav")[0]
+            sig = wav_dict[ str(self.path_list[idx])+'-'+dataset_name+'.wav' ] 
+            #sig = preemphasis(sig)
             
-            length = 16000*4 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
-            pad1d = lambda a, i: a[:,0:i] if a.shape[1] > i else torch.hstack((a, torch.zeros((1,i-a.shape[1]))))        
-            sig_tensor = pad1d(sig_tensor,length)
-            sig_tensor_fusion.append(sig_tensor)
+            origin_length = sig.shape[0]
+            
+            #if sig.shape[0] > self.mel_params["sr"]*2:
+            #    origin_length = self.mel_params["sr"]*2
+            
+            origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
+            
+            ###signal norm
+            sig = (sig-sig.mean())/sig.std()
+            ###
+
+            length = self.mel_params["sr"]*3 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+            pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
+            sig = pad1d(sig,length)
+
+            sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
+            sig=sig.unsqueeze(0)
+
+            sig_tensor_fusion.append(sig)
+            #print(sig.size())
+        #print(sig_tensor.size())
+        
+        #length = 16000*3 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        #pad1d = lambda a, i: a[:,0:i] if a.shape[1] > i else torch.hstack((a, torch.zeros((1,i-a.shape[1]))))        
+        #sig_tensor = pad1d(sig_tensor,length)
         sig_tensor_fusion = torch.stack(sig_tensor_fusion)
 
         return sig_tensor_fusion, self.classes.index(self.label[idx]), str(self.path_list[idx])
@@ -1209,7 +1370,64 @@ def load_data(
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 )
+    elif model=='wav_res_concat_phrase_vowel':
+        train_loader = DataLoader(dataset = svd_dataset_wav_phrase_vowel_concat(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav_phrase_vowel_concat(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )
+    elif model=='wav_res_latefusion_phrase_vowel':
+        train_loader = DataLoader(dataset = svd_dataset_wav_phrase_vowel_latefusion(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav_phrase_vowel_latefusion(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )
     elif model=='wav_res_concat_latefusion':
+        #vowel들 합. 3x3
         train_loader = DataLoader(dataset = svd_dataset_wav_concat_latefusion(
                                                     X_train_list,
                                                     Y_train_list,
@@ -1516,6 +1734,32 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.   
+    elif model=='wav_res_concat_phrase_vowel':
+        test_loader = DataLoader(dataset = svd_dataset_wav_phrase_vowel_latefusion(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )
+    elif model=='wav_res_latefusion_phrase_vowel':
+        test_loader = DataLoader(dataset = svd_dataset_wav_phrase_vowel_latefusion(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )
     elif model=='msf':
         test_loader = DataLoader(dataset =  svd_dataset_msf(
                                                     X_test,

@@ -188,7 +188,7 @@ class Resnet_wav_latefusion(nn.Module):
 
 class Resnet_wav_latefusion_phrase_vowel(nn.Module):
     """
-    phrase + vowel latefusion에 사용
+    phrase + vowel latefusion에 사용 concat이 된 데이터
     """
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(Resnet_wav_latefusion_phrase_vowel, self).__init__()
@@ -197,7 +197,7 @@ class Resnet_wav_latefusion_phrase_vowel(nn.Module):
         self.res_vowel = models.resnet18(pretrained=True).cuda()
         #self.num_ftrs = self.model.fc.out_features
 
-        self.num_ftrs = self.res_h.fc.out_features
+        self.num_ftrs = self.res_phrase.fc.out_features
         
         self.pad1d = lambda a, i: a[0:i] if a.shape[0] > i else torch.hstack((a, torch.zeros((i-a.shape[0]))))   
 
@@ -218,7 +218,7 @@ class Resnet_wav_latefusion_phrase_vowel(nn.Module):
         )
 
         self.fc = nn.Sequential(       
-                            nn.Linear(self.num_ftrs*3, self.num_ftrs),
+                            nn.Linear(self.num_ftrs*2, self.num_ftrs),
                             nn.BatchNorm1d(self.num_ftrs),
                             nn.ReLU(),
                             nn.Dropout(p=0.5),
@@ -251,7 +251,7 @@ class Resnet_wav_latefusion_phrase_vowel(nn.Module):
         phrase=self.res_phrase(phrase)
         vowel=self.res_vowel(vowel)
 
-        out = torch.cat([phrase,phrase,phrase],axis=1)
+        out = torch.cat([phrase,vowel],axis=1)
         out = self.fc(out)
 
         return out
@@ -608,7 +608,7 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
     elif model_name=='wav_res_concat_latefusion': # vowel들 concat + latefusion
         model = Resnet_wav_latefusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name =='wav_res_concat_phrase_vowel':
-        model = Resnet_wav_latefusion_all(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = Resnet_wav_latefusion_phrase_vowel(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name =='wav_res_latefusion_phrase_vowel':
         model = Resnet_wav_latefusion_all(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'wav_res_concat_allfusion':

@@ -48,55 +48,6 @@ import matplotlib.pyplot as plt
 #자연어 처리에서는 25ms 사용. https://ahnjg.tistory.com/93
 #초당 50000hz 중 1250개씩 윈도우 사이즈로 사용.
 
-#default param
-
-# spectro_run_config = dict(
-#     sr=16000,
-#     n_fft=350,
-#     hop_length=50,
-#     win_length=350,
-#     # training
-#     batch_size=16,
-# )
-
-# #기존 파라미터
-# #mel_run_config = dict(
-# #    sr=16000,
-# #    n_mels=128,
-# #    win_length =  300,
-# #    n_fft= 2048,
-# #    hop_length= 50,
-# #    f_max = 8000    
-# #)
-# mel_run_config = dict(
-#    sr=16000,
-#    n_mels=128,
-#    win_length =  300,
-#    n_fft= 2048,
-#    hop_length= 50,
-#    f_max = 8000    
-# )
-
-
-# mfcc_run_config = dict(
-#     sr=16000,
-#     n_mfcc=27,
-#     #dct_type=3, # type2 default
-#     lifter = 35,
-    
-#     #mel spectro
-#     n_mels=170,
-#     hop_length=750,
-#     n_fft =14056,    
-#     win_length=1100,
-#     f_max=8000,
-    
-#     # training
-#     #batch_size=32,
-#     mel_scale ='htk',
-    
-#     # data
-# )
 
 #confusion matrix 계산
 #test set 계산.
@@ -198,7 +149,7 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
                 output_list+= softmax_outputs
                 file_list += path_list
-    elif model_name == 'wav_res_concat_2wav':
+    elif model_name == 'wav_res_concat_phrase_vowel':
         with torch.no_grad():
             for image,label,path_list in test_loader:
                 image = image.to(DEVICE)
@@ -214,6 +165,21 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 output_list+= softmax_outputs
                 file_list += path_list
     elif model_name == 'wav_res_concat_allfusion_attention':
+        with torch.no_grad():
+            for image,label,path_list in test_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                test_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                answers +=label
+                predictions +=prediction
+
+                #save result
+                softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
+                output_list+= softmax_outputs
+                file_list += path_list
+    elif model_name == 'wav_res_latefusion_phrase_vowel':
         with torch.no_grad():
             for image,label,path_list in test_loader:
                 image = image.to(DEVICE)
@@ -350,7 +316,7 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
-    elif model_name == 'wav_res_concat_2wav':
+    elif model_name == 'wav_res_concat_phrase_vowel':
         for batch_idx,(image,label,path_list) in enumerate(train_loader):
             image = image.to(DEVICE)
             label = label.to(DEVICE)
@@ -364,6 +330,19 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     elif model_name == 'wav_res_concat_allfusion_attention':
+        for batch_idx,(image,label,path_list) in enumerate(train_loader):
+            image = image.to(DEVICE)
+            label = label.to(DEVICE)
+            #데이터들 장비에 할당
+            optimizer.zero_grad() # device 에 저장된 gradient 제거
+            output = model(image) # model로 output을 계산
+            loss = criterion(output, label) #loss 계산
+            train_loss += loss.item()
+            prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+            correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+            loss.backward() # loss 값을 이용해 gradient를 계산
+            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
+    elif model_name == 'wav_res_latefusion_phrase_vowel':
         for batch_idx,(image,label,path_list) in enumerate(train_loader):
             image = image.to(DEVICE)
             label = label.to(DEVICE)
@@ -482,7 +461,7 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
                 #true.false값을 sum해줌. item
-    elif model_name == 'wav_res_concat_2wav':
+    elif model_name == 'wav_res_concat_phrase_vowel':
         with torch.no_grad():
             for image,label,path_list in valid_loader:
                 image = image.to(DEVICE)
@@ -503,6 +482,16 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
                 #true.false값을 sum해줌. item
     elif model_name == 'wav_res_concat_allfusion_attention':
+        with torch.no_grad():
+            for image,label,path_list in valid_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                valid_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+                #true.false값을 sum해줌. item
+    elif model_name == 'wav_res_latefusion_phrase_vowel':
         with torch.no_grad():
             for image,label,path_list in valid_loader:
                 image = image.to(DEVICE)
@@ -566,7 +555,7 @@ def main():
                         help='Use wandb log')                        
     parser.add_argument('--model',type=str, default='baseline',
                         help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,\
-                            wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_2wav,wav_]')
+                            wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel]')
     parser.add_argument('--dataset',type=str, default='phrase',
                         help='list : [phrase, a_h, a_n, a_l, a_fusion ... ]')
     parser.add_argument('--name',type=str, default='res18',
