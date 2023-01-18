@@ -18,3 +18,4 @@ model/varauto/var_spectro/
 wandb/
 checkpoint/
 *.pyc
+kaggle/
