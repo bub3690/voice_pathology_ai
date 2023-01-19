@@ -145,7 +145,7 @@ def cv_spliter(random_state,file_path):
                 #print(record_list)
 
             # 중복화자 한명 남기기 실험. 2023.01.18
-            record_list = [record_list[0],]
+            #record_list = [record_list[0],]
             
 
             label_list = [ Y_train_list[fold_idx][idx] ] * len(record_list)       
@@ -210,20 +210,20 @@ def cv_spliter(random_state,file_path):
 
 
     #2. random over sampling
-    # for i in range(5):
-    #     X_temp = np.array(X_train_list[i]).reshape(-1,1)#각 데이터를 다 행으로 넣음. (1194,1)
-    #     #Y = np.array(Y)
-    #     ros = RandomOverSampler(random_state = 123)
-    #     X_res,Y_res = ros.fit_resample(X_temp,Y_train_list[i])
+    for i in range(5):
+        X_temp = np.array(X_train_list[i]).reshape(-1,1)#각 데이터를 다 행으로 넣음. (1194,1)
+        #Y = np.array(Y)
+        ros = RandomOverSampler(random_state = 123)
+        X_res,Y_res = ros.fit_resample(X_temp,Y_train_list[i])
         
-    #     print("\n fold{} ".format(i))
-    #     print('before dataset shape {}'.format(Counter(Y_train_list[i])) )
-    #     print('Resampled dataset shape {}'.format(Counter(Y_res)) )   
+        print("\n fold{} ".format(i))
+        print('before dataset shape {}'.format(Counter(Y_train_list[i])) )
+        print('Resampled dataset shape {}'.format(Counter(Y_res)) )   
         
-    #     #원래대로 돌리기
-    #     X_res=X_res.reshape(1, -1)
-    #     X_train_list[i]=X_res[0].tolist()
-    #     Y_train_list[i]=Y_res
+        #원래대로 돌리기
+        X_res=X_res.reshape(1, -1)
+        X_train_list[i]=X_res[0].tolist()
+        Y_train_list[i]=Y_res
 
     return X_train_list,X_valid_list,X_test,Y_train_list,Y_valid_list,Y_test
 

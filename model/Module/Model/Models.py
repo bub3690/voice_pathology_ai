@@ -474,13 +474,21 @@ class Resnet_wav_latefusion_all_attention(nn.Module):
                             nn.Dropout(p=0.5),
                             nn.Linear(64,2),
                             )
+        self.feature_to_score_phrase = nn.Sequential(
+            nn.Linear(self.num_ftrs, self.num_ftrs//2),
+            nn.Linear(self.num_ftrs//2, 3),
+            )
         self.feature_to_score = nn.Sequential(
             nn.Linear(self.num_ftrs, self.num_ftrs//2),
             nn.Linear(self.num_ftrs//2, 1),
             )
-    def attention_module(self,feature):
-        score=self.feature_to_score(feature)
-        score=torch.sigmoid(score)
+    def attention_module(self,phrase,a,i,u):
+        phrase_score = self.feature_to_score(phrase)
+        a_score = self.feature_to_score(a)
+        i_score = self.feature_to_score(i)
+        u_score = self.feature_to_score(u)
+
+        score = torch.softmax(torch.cat([phrase_score,a_score,i_score,u_score],dim=1),dim=1)
         return score #attention score
 
     def forward(self, x_list,train=True):
@@ -512,21 +520,172 @@ class Resnet_wav_latefusion_all_attention(nn.Module):
         out_i=self.res_i(out_i)
         out_u=self.res_u(out_u)
         
-        #attention score. 단순 sigmoid 곱
-        phrase_score = self.attention_module(out_phrase)
-        a_score = self.attention_module(out_a)
-        i_score = self.attention_module(out_i)
-        u_score = self.attention_module(out_u)
+        #attention score. 
+        score = self.attention_module(out_phrase,out_a,out_i,out_u)
 
-        out_phrase = phrase_score*out_phrase
-        out_a = a_score*out_a
-        out_i = i_score*out_i
-        out_u = u_score*out_u
-        #print("phrase : ",phrase_score,"a : ",a_score,"i : ",i_score,"u : ",u_score)
+        out_phrase = score[:,0].unsqueeze(dim=1)*out_phrase
+        out_a = score[:,1].unsqueeze(dim=1)*out_a
+        out_i = score[:,2].unsqueeze(dim=1)*out_i
+        out_u = score[:,3].unsqueeze(dim=1)*out_u
+        #print("phrase : ",score[:,0],"a : ",score[:,1],"i : ",score[:,2],"u : ",score[:,3])
         out = torch.cat([out_phrase, out_a, out_i, out_u],axis=1)
         out = self.fc(out)
 
         return out #,phrase_score
+
+class Resnet_wav_latefusion_all_attention(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(Resnet_wav_latefusion_all_attention, self).__init__()
+
+        self.res_phrase = models.resnet18(pretrained=True).cuda()
+        self.res_a = models.resnet18(pretrained=True).cuda()
+        self.res_i = models.resnet18(pretrained=True).cuda()
+        self.res_u = models.resnet18(pretrained=True).cuda()
+        #self.num_ftrs = self.model.fc.out_features
+
+        self.num_ftrs = self.res_phrase.fc.out_features
+
+        self.pad1d = lambda a, i: a[0:i] if a.shape[0] > i else torch.hstack((a, torch.zeros((i-a.shape[0]))))   
+
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+
+        # self.fc = nn.Sequential(       
+        #                     nn.Linear(self.num_ftrs*4, self.num_ftrs),
+        #                     nn.BatchNorm1d(self.num_ftrs),
+        #                     nn.ReLU(),
+        #                     nn.Dropout(p=0.5),
+        #                     nn.Linear(self.num_ftrs,128),
+        #                     nn.BatchNorm1d(128),
+        #                     nn.ReLU(),
+        #                     nn.Dropout(p=0.5),
+        #                     nn.Linear(128,64),
+        #                     nn.BatchNorm1d(64),
+        #                     nn.ReLU(),
+        #                     nn.Dropout(p=0.5),
+        #                     nn.Linear(64,2),
+        #                     )
+        self.fc = nn.Sequential(       
+                            nn.Linear(self.num_ftrs+6,128),
+                            nn.BatchNorm1d(128),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(128,64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,2),
+                            )        
+        self.fc_a = nn.Sequential(
+                            nn.Linear(self.num_ftrs,128),
+                            nn.BatchNorm1d(128),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(128,64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,2),
+                            )
+        self.fc_i = nn.Sequential(
+                            nn.Linear(self.num_ftrs,128),
+                            nn.BatchNorm1d(128),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(128,64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,2),
+                            )
+        self.fc_u = nn.Sequential(
+                            nn.Linear(self.num_ftrs,128),
+                            nn.BatchNorm1d(128),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(128,64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,2),
+                            )                                                        
+
+        self.feature_to_score_phrase = nn.Sequential(
+            nn.Linear(self.num_ftrs, self.num_ftrs//2),
+            nn.Linear(self.num_ftrs//2, 3),
+            )
+        self.feature_to_score = nn.Sequential(
+            nn.Linear(self.num_ftrs, self.num_ftrs//2),
+            nn.Linear(self.num_ftrs//2, 1),
+            )
+    def attention_module(self,phrase,a,i,u):
+        phrase_score = self.feature_to_score(phrase)
+        a_score = self.feature_to_score(a)
+        i_score = self.feature_to_score(i)
+        u_score = self.feature_to_score(u)
+
+        score = torch.softmax(torch.cat([phrase_score,a_score,i_score,u_score],dim=1),dim=1)
+        return score #attention score
+    
+    def attention_module(self,vowel):
+        score=torch.softmax(vowel,dim=1)
+        return score*vowel
+
+    def forward(self, x_list,train=True):
+        # phrase, a, i ,u 순으로 입력
+        mel_phrase = self.mel_scale(x_list[:,0,...])
+        mel_phrase = torchaudio.functional.amplitude_to_DB(mel_phrase,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_phrase)) )
+        mel_phrase = torch.squeeze(mel_phrase,dim=1)
+
+        mel_a = self.mel_scale(x_list[:,1,...])
+        mel_a = torchaudio.functional.amplitude_to_DB(mel_a,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_a)) )
+        mel_a = torch.squeeze(mel_a,dim=1)
+
+        mel_i = self.mel_scale(x_list[:,2,...])
+        mel_i = torchaudio.functional.amplitude_to_DB(mel_i,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_i)) )
+        mel_i = torch.squeeze(mel_i,dim=1)
+
+        mel_u = self.mel_scale(x_list[:,3,...])
+        mel_u = torchaudio.functional.amplitude_to_DB(mel_u,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_u)) )
+        mel_u = torch.squeeze(mel_u,dim=1)
+
+        out_phrase = torch.stack([mel_phrase,mel_phrase,mel_phrase],axis=1)
+        out_a = torch.stack([mel_a,mel_a,mel_a],axis=1)
+        out_i = torch.stack([mel_i,mel_i,mel_i],axis=1)
+        out_u = torch.stack([mel_u,mel_u,mel_u],axis=1)
+        
+        #print(out.size())
+        out_phrase=self.res_phrase(out_phrase)
+        out_a=self.fc_a(self.res_a(out_a))
+        out_i=self.fc_i(self.res_i(out_i))
+        out_u=self.fc_u(self.res_u(out_u))
+        
+        #attention score. 
+        #score = self.attention_module(out_phrase,out_a,out_i,out_u)
+
+        #out_phrase = out_phrase
+        #out_a = self.attention_module(out_a)
+        #out_i = self.attention_module(out_i)
+        #out_u = self.attention_module(out_u)
+        #print("phrase : ",score[:,0],"a : ",score[:,1],"i : ",score[:,2],"u : ",score[:,3])
+        out = torch.cat([out_phrase, out_a, out_i, out_u],axis=1)
+        out = self.fc(out)
+
+        return out #,phrase_score
+
 
 class MSF(nn.Module):
     def __init__(self,n_mfcc):
