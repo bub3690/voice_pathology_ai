@@ -95,6 +95,7 @@ class Resnet_wav(nn.Module):
         #spec = self.spec(x)
         #mel = self.mel_spectrogram(x)
         mel = self.mel_scale(x)
+        
         mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
         
         #mel = self.power_to_db(mel)
@@ -110,7 +111,76 @@ class Resnet_wav(nn.Module):
         #print(out.size())
         out=self.res(out)
         return out
- 
+
+class Resnet_wav_logspectro(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(Resnet_wav_logspectro, self).__init__()
+        # if "center=True" of stft, padding = win_len / 2
+
+        #self.num_ftrs = 63
+
+        self.res = ResLayer()
+
+
+        # self.spec = T.Spectrogram(n_fft=win_len,hop_length=hop_len,power=2)
+
+        # self.mel_scale = T.MelScale(
+        #     n_mels=mel_bins, sample_rate=16000, n_stft=win_len // 2 + 1
+        #     )
+
+        self.power_to_db = T.AmplitudeToDB(stype="power", top_db=80)
+
+        self.get_spectrogram = T.Spectrogram(
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            center=True,
+            pad_mode="constant",
+            power=2.0)
+
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+
+        # stretch_factor=0.8
+        # self.spec_aug = torch.nn.Sequential(
+        #     T.TimeStretch(stretch_factor, fixed_rate=True),
+        #     T.FrequencyMasking(freq_mask_param=80),
+        #     T.TimeMasking(time_mask_param=40),
+        # )        
+
+    def forward(self, x):
+        #spec = self.spec(x)
+        #mel = self.mel_spectrogram(x)
+        mel = self.get_spectrogram(x)[:,:100,:]
+
+        mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
+        
+        #mel = self.power_to_db(mel)
+        #mel = self.spec_aug(mel)
+        mel = torch.squeeze(mel,dim=1)
+        #mel = (mel-torch.mean(mel))/torch.std(mel)
+        #out = out.mean(axis=2)
+        #out=self.fc(out)
+        
+        #concated_feature = torch.concat([mel,out],axis=2)
+
+        out = torch.stack([mel,mel,mel],axis=1)
+        #print(out.size())
+        out=self.res(out)
+        return out
 
 class Resnet_wav_latefusion(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
@@ -759,6 +829,10 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
     if model_name=='msf':
         model = MSF(mfcc_run_config['n_mfcc']).cuda()
     elif model_name=='wav_res':
+        #model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()      
+    elif model_name=='wav_res_splicing':
+        #model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()      
     elif model_name=='wav_res_latefusion':
         model = Resnet_wav_latefusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
