@@ -209,7 +209,11 @@ def main():
         
         print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))
         for Epoch in range(1,EPOCHS+1):
-            train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,criterion)
+            if args.model=='wav_res_splicing':
+                train_criterion = nn.CrossEntropyLoss(reduction='none')
+                train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,train_criterion)
+            else:
+                train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,criterion)
             valid_loss,valid_accuracy = evaluate(model,args.model,validation_loader,DEVICE,criterion)
             
             logger_valid_acc = "valid {}fold Accuracy".format(data_ind)

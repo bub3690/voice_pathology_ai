@@ -7,8 +7,9 @@ import torchvision.models as models
 
 
 
+
 def pad_samples(sig_tensor):
-    length = 16000*4 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+    length = 16000*6 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
     pad1d = lambda a, i: a[:,0:i] if a.shape[1] > i else torch.hstack((a, torch.zeros((1,i-a.shape[1]))))        
     sig_tensor = pad1d(sig_tensor,length)
     print(sig_tensor.size())
@@ -17,35 +18,10 @@ def pad_samples(sig_tensor):
 def mixup_criterion(criterion, pred, y_a, y_b, lam):
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
-
-def mixup_data(x, y, alpha=1.0, use_cuda=True):
-    '''Returns mixed inputs, pairs of targets, and lambda'''
-    if alpha > 0:
-        lam = torch.distributions.Beta(torch.FloatTensor(alpha), torch.FloatTensor(alpha))
-    else:
-        lam = 1
-
-    batch_size = x.size()[0]
-    if use_cuda:
-        index = torch.randperm(batch_size).cuda()
-    else:
-        index = torch.randperm(batch_size)
-
-    mixed_x = lam * x + (1 - lam) * x[index, :]
-    y_a, y_b = y, y[index]
-    return mixed_x, y_a, y_b, lam
-
-
-def splice_data(x,y):
-    '''return concated data. label pairs, lambda'''
-
-    batch_size = x.size()[0]
-    index = torch.randperm(batch_size).cuda()
-
-    mixed_x = torch.concat([x,x[index,:,:]],dim=2)
-    y_a, y_b = y, y[index]
-    return mixed_x, y_a, y_b
-
+def splicing_criterion(criterion, pred, y_a, y_b, lam):
+    #print(lam * criterion(pred, y_a))
+    #print(lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b))
+    return (lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)).mean()
 
 
 #confusion matrix 계산
@@ -73,7 +49,7 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 predictions +=prediction
     elif model_name == 'wav_res':
         with torch.no_grad():
-            for image,label,path_list in test_loader:
+            for image,label,path_list,origin_length in test_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
                 output = model(image)
@@ -88,7 +64,22 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 file_list += path_list
     elif model_name == 'wav_res_splicing':
         with torch.no_grad():
-            for image,label,path_list in test_loader:
+            for image,label,path_list,origin_length in test_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                test_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                answers +=label
+                predictions +=prediction
+
+                #save result
+                softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
+                output_list+= softmax_outputs
+                file_list += path_list
+    elif model_name == 'wav_res_mixup':
+        with torch.no_grad():
+            for image,label,path_list,origin_length in test_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
                 output = model(image)
@@ -252,6 +243,7 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
     model.train()
     correct = 0
     train_loss = 0
+    total = 0 # mixup에 이용
     if model_name == 'baseline':
         for batch_idx,(image,label) in enumerate(train_loader):
             image = image.to(DEVICE)
@@ -266,7 +258,7 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     elif model_name == 'wav_res':
-        for batch_idx,(image,label,path_list) in enumerate(train_loader):
+        for batch_idx,(image,label,path_list,origin_length) in enumerate(train_loader):
             image = image.to(DEVICE)
             label = label.to(DEVICE)
             #데이터들 장비에 할당
@@ -279,26 +271,61 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     elif model_name == 'wav_res_splicing':
-        for batch_idx,(image,label,path_list) in enumerate(train_loader):
+        for batch_idx,(image,label_a,label_b,lam,path_list) in enumerate(train_loader):
+            #splicing data가 넘어온다.
             image = image.to(DEVICE)
-            label = label.to(DEVICE)
-
-            # 여기서 splicing augmentation
-            image,label_a,label_b = splice_data(image,label)
+            label_a = label_a.to(DEVICE)
+            label_b = label_b.to(DEVICE)
+            lam = lam.to(DEVICE)
             # padding
             #image=pad_samples(image)
 
             #데이터들 장비에 할당
             optimizer.zero_grad() # device 에 저장된 gradient 제거
             output = model(image) # model로 output을 계산
-            loss = mixup_criterion(criterion,output, label_a,label_b,lam=0.5)
+            
+            loss = splicing_criterion(criterion,output, label_a,label_b,lam)
             #loss = criterion(output, label) #loss 계산
             train_loss += loss.item()
-            prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
-            correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+           
+            prediction = output.max(1,keepdim=True)[1].squeeze() # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만. 인덱스만 가져오면 당연히 안되고 각 확률을 합해줘야함.
+            
+             #여기 고치기. predictipn 계산이 잘못된것으로 보인다.
+            correct += (lam * prediction.eq(label_a.data)).sum().float() + ((1 - lam) * prediction.eq(label_b.data)).sum().float()
+
+            #correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
+    elif model_name == 'wav_res_mixup':
+        for batch_idx,(image,label_a,label_b,lam,path_list) in enumerate(train_loader):
+            #splicing data가 넘어온다.
+            image = image.to(DEVICE)
+            label_a = label_a.to(DEVICE)
+            label_b = label_b.to(DEVICE)
+            lam = lam
+            # padding
+            #image=pad_samples(image)
 
+            #데이터들 장비에 할당
+            optimizer.zero_grad() # device 에 저장된 gradient 제거
+            output = model(image) # model로 output을 계산
+            loss = mixup_criterion(criterion, output, label_a, label_b, lam)
+            #loss = criterion(output, label) #loss 계산
+            train_loss += loss.item()
+            same_label=label_a.eq(label_b).sum().float()
+            total += (same_label + max([lam,1-lam])*(image.size(0)-same_label ) )
+            #print("total: ", max([lam,1-lam])*image.size(0) )
+
+
+            prediction = output.max(1,keepdim=True)[1].squeeze() # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+            #print(prediction)
+            probs = torch.softmax(output,dim=1)
+            
+            correct += (lam * prediction.eq(label_a.data)).sum().float() + ((1 - lam) * prediction.eq(label_b.data)).sum().float()
+            #print("a :",(lam * prediction.eq(label_a.data)).sum().float());print("b : ",((1 - lam) * prediction.eq(label_b.data)).sum().float())
+            #correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+            loss.backward() # loss 값을 이용해 gradient를 계산
+            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     elif model_name == 'wav_res_latefusion':
         for batch_idx,(image,label,path_list) in enumerate(train_loader):
             image = image.to(DEVICE)
@@ -431,7 +458,13 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.        
     train_loss/=len(train_loader.dataset)
-    train_accuracy = 100. * correct / len(train_loader.dataset)
+    
+
+    #믹스업 일때만 acc를 달리 계산
+    if model_name=='wav_res_mixup':
+        train_accuracy = 100. * correct / total
+    else:
+        train_accuracy = 100. * correct / len(train_loader.dataset)
     return train_loss,train_accuracy
 
 
@@ -454,7 +487,7 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 #true.false값을 sum해줌. item
     elif model_name == 'wav_res':
         with torch.no_grad():
-            for image,label,path_list in valid_loader:
+            for image,label,path_list,origin_length in valid_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
                 output = model(image)
@@ -468,7 +501,21 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 #true.false값을 sum해줌. item
     elif model_name == 'wav_res_splicing':
         with torch.no_grad():
-            for image,label,path_list in valid_loader:
+            for image,label,path_list,origin_length in valid_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                #print(F.softmax(output))
+                #print(output.size())
+                valid_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+                #print(prediction.eq(label.view_as(prediction)))
+                #print(path_list)
+                #true.false값을 sum해줌. item
+    elif model_name == 'wav_res_mixup':
+        with torch.no_grad():
+            for image,label,path_list,origin_length in valid_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
                 output = model(image)

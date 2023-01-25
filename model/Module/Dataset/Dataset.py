@@ -7,6 +7,7 @@ import librosa
 
 from .Data import PhraseData, FusionData
 import torchaudio.transforms as T
+from torch.nn.utils.rnn import pad_sequence
 
 
 ###
@@ -559,7 +560,7 @@ class svd_dataset_wav(Dataset):
         sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
         sig=sig.unsqueeze(0)
         
-        return sig, self.classes.index(self.label[idx]), str(self.path_list[idx])
+        return sig, self.classes.index(self.label[idx]), str(self.path_list[idx]), origin_length
 
 class svd_dataset_wav_nopad(Dataset):
     def __init__(self,
@@ -623,8 +624,8 @@ class svd_dataset_wav_nopad(Dataset):
         
         origin_length = sig.shape[0]
         
-        if sig.shape[0] > self.mel_params["sr"]*3:
-            origin_length = self.mel_params["sr"]*3
+        # if sig.shape[0] > self.mel_params["sr"]*3:
+        #     origin_length = self.mel_params["sr"]*3
         
         origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
         #print(sig.shape)
@@ -639,10 +640,111 @@ class svd_dataset_wav_nopad(Dataset):
         ###
 
         sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
-        sig=sig.unsqueeze(0)
+        #sig=sig.unsqueeze(0)
         
-        return sig, self.classes.index(self.label[idx]), str(self.path_list[idx])
+        return sig, self.classes.index(self.label[idx]), str(self.path_list[idx]), origin_length
 
+def splice_data_same(x,y,path_list,origin_length,alpha=1.0):
+    """같은 라벨에 대해서 splice 하는 경우. 아직 미구현"""
+    '''return concated data. label pairs, lambda'''
+
+    batch_size = x.size()[0]
+    index = torch.randperm(batch_size).cuda()
+
+    if alpha > 0:
+        beta = torch.distributions.Beta(torch.tensor([alpha]), torch.tensor([alpha]))
+        lam  = beta.sample( (batch_size,) ).squeeze()
+        #print(lam)
+    else:
+        lam = 1
+    #print(origin_length)
+    first_len = torch.ceil(lam * origin_length).type(torch.LongTensor)
+    second_len = torch.ceil( (1-lam) * origin_length[index]).type(torch.LongTensor)
+    
+    print(x[:,:,:first_len])
+    mixed_x = torch.concat([x[:,:,:first_len],x[index,:,:second_len]],dim=2)
+    y_a, y_b = y, y[index]
+    return mixed_x,y_a, y_b,path_list
+
+
+
+
+def splice_data(x,y,origin_length,alpha=1.0):
+    '''return concated data. label pairs, lambda'''
+
+    batch_size = len(x)
+    index = torch.randperm(batch_size)
+
+    if alpha > 0:
+        beta = torch.distributions.Beta(torch.tensor([alpha]), torch.tensor([alpha]))
+        lam  = beta.sample( (batch_size,) ).squeeze()
+        #print(lam)
+    else:
+        lam = 1
+    #print(origin_length)
+    
+    for batch_ind,second_ind in enumerate(index):
+        first_len = torch.ceil(lam[batch_ind] * origin_length[batch_ind] ).int()
+        second_len = torch.ceil( (1-lam[batch_ind]) * origin_length[second_ind]).int()
+        x[batch_ind] = torch.concat([ x[batch_ind][:first_len], x[second_ind][:second_len] ],dim=0)
+
+    #print(x)
+    #x = pad_sequence(x).unsqueeze(1)
+    y = torch.tensor(y,dtype=torch.int64)
+    y_a, y_b = y, y[index]
+    return x, y_a, y_b, lam
+
+
+
+def mixup_data(x, y, alpha=1.0  ):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    
+    batch_size = x.size()[0]
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1    
+    # if alpha > 0:
+    #     beta = torch.distributions.Beta(torch.tensor(alpha), torch.tensor(alpha))
+    #     lam = beta.sample((batch_size,) ).squeeze()
+    # else:
+    #     lam = 1
+
+    
+    index = torch.randperm(batch_size).cuda()
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y = torch.tensor(y,dtype=torch.int64)
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+def collate_mixup(batch):
+    signal_list, label_list, path_list, length_list = [],[],[],[]
+    
+    for signal, label, path, length in batch:
+        signal_list.append(signal)
+        label_list.append(label)
+        path_list.append(path)
+        length_list.append(length)
+    # pad 먼저 해야하는데, 어떻게 할지.
+    signal_list=pad_sequence(signal_list,batch_first=True)
+    signal_list, y_a, y_b,lam = mixup_data(signal_list,label_list)
+    
+    return signal_list,y_a,y_b,lam,path_list
+
+
+
+def collate_splicing(batch):
+    signal_list, label_list, path_list, length_list = [],[],[],[]
+    
+    for signal, label, path, length in batch:
+        signal_list.append(signal)
+        label_list.append(label)
+        path_list.append(path)
+        length_list.append(length)
+    
+    signal_list, y_a, y_b,lam = splice_data(signal_list,label_list,length_list)
+    signal_list=pad_sequence(signal_list,batch_first=True)
+    return signal_list,y_a,y_b,lam,path_list
 
 
 class svd_dataset_wav_fusion(Dataset):
@@ -1400,7 +1502,7 @@ def load_data(
                                                 #worker_init_fn=seed_worker
                                                 )
     elif model=='wav_res_splicing':
-        train_loader = DataLoader(dataset = svd_dataset_wav(
+        train_loader = DataLoader(dataset = svd_dataset_wav_nopad(
                                                     X_train_list,
                                                     Y_train_list,
                                                     classes,
@@ -1411,9 +1513,38 @@ def load_data(
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                collate_fn=collate_splicing
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
 
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )
+    elif model=='wav_res_mixup':
+        train_loader = DataLoader(dataset = svd_dataset_wav_nopad(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                collate_fn=collate_mixup
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
         validation_loader = DataLoader(dataset = 
                                                 svd_dataset_wav(
                                                     X_valid_list,
@@ -1783,6 +1914,19 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.svd_dataset_wav_nopad
     elif model=='wav_res_splicing':
+        test_loader = DataLoader(dataset = svd_dataset_wav(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+    elif model=='wav_res_mixup':
         test_loader = DataLoader(dataset = svd_dataset_wav(
                                                     X_test,
                                                     Y_test,
