@@ -19,3 +19,4 @@ wandb/
 checkpoint/
 *.pyc
 kaggle/
+images/

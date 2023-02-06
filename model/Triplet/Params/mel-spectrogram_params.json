@@ -1,0 +1,43 @@
+{
+    "1004":{
+        "sr": 16000,
+        "n_mels": 70,
+        "win_length": 1360,
+        "n_fft": 1360,
+        "hop_length": 70,
+        "f_max": 8000
+    },
+    "1005":{
+        "sr": 16000,
+        "n_mels": 128,
+        "win_length": 960,
+        "n_fft": 960,
+        "hop_length": 500,
+        "f_max": 8000
+    },
+    "1006":{
+        "sr": 16000,
+        "n_mels": 190,
+        "win_length": 470,
+        "n_fft": 470,
+        "hop_length": 80,
+        "f_max": 8000
+    },
+    "1007":{
+        "sr": 16000,
+        "n_mels": 110,
+        "win_length": 2230,
+        "n_fft": 2230,
+        "hop_length": 130,
+        "f_max": 8000
+    },
+    "1008":{
+        "sr": 16000,
+        "n_mels": 130,
+        "win_length": 500,
+        "n_fft": 500,
+        "hop_length": 890,
+        "f_max": 8000
+    }
+
+}
