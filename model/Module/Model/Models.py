@@ -119,14 +119,14 @@ class Resnet_wav(nn.Module):
             window_fn=torch.hann_window
         )
 
-        # stretch_factor=0.8
-        # self.spec_aug = torch.nn.Sequential(
-        #     T.TimeStretch(stretch_factor, fixed_rate=True),
-        #     T.FrequencyMasking(freq_mask_param=80),
-        #     T.TimeMasking(time_mask_param=40),
-        # )        
+        stretch_factor=0.8
+        self.spec_aug = torch.nn.Sequential(
+            #T.TimeStretch(stretch_factor, fixed_rate=True),
+            T.FrequencyMasking(freq_mask_param=80),
+            T.TimeMasking(time_mask_param=40),
+        )        
 
-    def forward(self, x):
+    def forward(self, x,augment=False):
         #spec = self.spec(x)
         #mel = self.mel_spectrogram(x)
         mel = self.mel_scale(x)
