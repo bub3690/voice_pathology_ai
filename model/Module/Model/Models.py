@@ -132,7 +132,8 @@ class Resnet_wav(nn.Module):
         mel = self.mel_scale(x)
         
         mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
-        
+        mel = (mel-mel.min())/(mel.max()-mel.min())
+
         #mel = self.power_to_db(mel)
         #mel = self.spec_aug(mel)
         mel = torch.squeeze(mel,dim=1)
@@ -406,10 +407,12 @@ class Resnet_wav_latefusion_phrase_vowel(nn.Module):
         # h, l ,n 순으로 입력
         phrase = self.mel_scale(x_list[:,0,...])
         phrase = torchaudio.functional.amplitude_to_DB(phrase,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(phrase)) )
+        phrase = (phrase-phrase.min())/(phrase.max()-phrase.min())
         phrase = torch.squeeze(phrase,dim=1)
 
         vowel = self.mel_scale(x_list[:,1,...])
         vowel = torchaudio.functional.amplitude_to_DB(vowel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(vowel)) )
+        vowel = (vowel-vowel.min())/(vowel.max()-vowel.min())
         vowel = torch.squeeze(vowel,dim=1)
 
         phrase = torch.stack([phrase,phrase,phrase],axis=1)
@@ -476,18 +479,24 @@ class Resnet_wav_latefusion_all(nn.Module):
         # phrase, a, i ,u 순으로 입력
         mel_phrase = self.mel_scale(x_list[:,0,...])
         mel_phrase = torchaudio.functional.amplitude_to_DB(mel_phrase,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_phrase)) )
+        mel_phrase = (mel_phrase-mel_phrase.min())/(mel_phrase.max()-mel_phrase.min())
         mel_phrase = torch.squeeze(mel_phrase,dim=1)
+        
+
 
         mel_a = self.mel_scale(x_list[:,1,...])
         mel_a = torchaudio.functional.amplitude_to_DB(mel_a,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_a)) )
+        mel_a = (mel_a-mel_a.min())/(mel_a.max()-mel_a.min())
         mel_a = torch.squeeze(mel_a,dim=1)
 
         mel_i = self.mel_scale(x_list[:,2,...])
         mel_i = torchaudio.functional.amplitude_to_DB(mel_i,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_i)) )
+        mel_i = (mel_i-mel_i.min())/(mel_i.max()-mel_i.min())
         mel_i = torch.squeeze(mel_i,dim=1)
 
         mel_u = self.mel_scale(x_list[:,3,...])
         mel_u = torchaudio.functional.amplitude_to_DB(mel_u,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_u)) )
+        mel_u = (mel_u-mel_u.min())/(mel_u.max()-mel_u.min())
         mel_u = torch.squeeze(mel_u,dim=1)
 
         out_phrase = torch.stack([mel_phrase,mel_phrase,mel_phrase],axis=1)
