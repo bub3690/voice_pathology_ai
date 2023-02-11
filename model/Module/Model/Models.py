@@ -127,12 +127,16 @@ class Resnet_wav(nn.Module):
         )
 
     #@classmethod
-    def batch_min_max(batch):
+    def sample_min_max(batch):
         batch_size,height,width = batch.size(0),batch.size(1),batch.size(2)
         batch = batch.contiguous().view(batch.size(0), -1)
         batch -= batch.min(1, keepdim=True)[0]
         batch /= batch.max(1, keepdim=True)[0]
         batch = batch.view(batch_size, height, width)
+        return batch
+
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
         return batch
 
     def forward(self, x,augment=False):
@@ -142,6 +146,7 @@ class Resnet_wav(nn.Module):
         
         mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
         mel = torch.squeeze(mel,dim=1)        
+        #mel = (mel-mel.min())/(mel.max()-mel.min())
         mel = Resnet_wav.batch_min_max(mel)
 
         #mel = self.power_to_db(mel)
