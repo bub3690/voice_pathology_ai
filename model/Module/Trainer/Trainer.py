@@ -62,6 +62,36 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
                 output_list+= softmax_outputs
                 file_list += path_list
+    elif model_name == 'wav_res_phrase_eggfusion_lstm':
+        with torch.no_grad():
+            for image,label,path_list,origin_length in test_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                test_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                answers +=label
+                predictions +=prediction
+
+                #save result
+                softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
+                output_list+= softmax_outputs
+                file_list += path_list
+    elif model_name == 'wav_res_time_attention':
+        with torch.no_grad():
+            for image,label,path_list,origin_length in test_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                test_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                answers +=label
+                predictions +=prediction
+
+                #save result
+                softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
+                output_list+= softmax_outputs
+                file_list += path_list
     elif model_name == 'wav_res_splicing':
         with torch.no_grad():
             for image,label,path_list,origin_length in test_loader:
@@ -264,6 +294,33 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             #데이터들 장비에 할당
             optimizer.zero_grad() # device 에 저장된 gradient 제거
             output = model(image) # model로 output을 계산
+            loss = criterion(output, label) #loss 계산
+            train_loss += loss.item()
+            prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+            correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+            loss.backward() # loss 값을 이용해 gradient를 계산
+            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
+    elif model_name == 'wav_res_phrase_eggfusion_lstm':
+        for batch_idx,(image,label,path_list,origin_length) in enumerate(train_loader):
+            image = image.to(DEVICE)
+            label = label.to(DEVICE)
+            #데이터들 장비에 할당
+            optimizer.zero_grad() # device 에 저장된 gradient 제거
+            output = model(image) # model로 output을 계산
+            loss = criterion(output, label) #loss 계산
+            train_loss += loss.item()
+            prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+            correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+            loss.backward() # loss 값을 이용해 gradient를 계산
+            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
+    elif model_name =='wav_res_time_attention':
+    #8. 학습
+        for batch_idx,(image,label,path_list,origin_length) in enumerate(train_loader):
+            image = image.to(DEVICE)
+            label = label.to(DEVICE)
+            #데이터들 장비에 할당
+            optimizer.zero_grad() # device 에 저장된 gradient 제거
+            output = model(image,augment=False) # model로 output을 계산
             loss = criterion(output, label) #loss 계산
             train_loss += loss.item()
             prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
@@ -486,6 +543,34 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
                 #true.false값을 sum해줌. item
     elif model_name == 'wav_res':
+        with torch.no_grad():
+            for image,label,path_list,origin_length in valid_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                #print(F.softmax(output))
+                #print(output.size())
+                valid_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+                #print(prediction.eq(label.view_as(prediction)))
+                #print(path_list)
+                #true.false값을 sum해줌. item
+    elif model_name == 'wav_res_phrase_eggfusion_lstm':
+        with torch.no_grad():
+            for image,label,path_list,origin_length in valid_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                #print(F.softmax(output))
+                #print(output.size())
+                valid_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
+                #print(prediction.eq(label.view_as(prediction)))
+                #print(path_list)
+                #true.false값을 sum해줌. item
+    elif model_name == 'wav_res_time_attention':
         with torch.no_grad():
             for image,label,path_list,origin_length in valid_loader:
                 image = image.to(DEVICE)

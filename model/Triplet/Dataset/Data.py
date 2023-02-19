@@ -2,9 +2,17 @@ import pickle
 import os
 
 def make_data(dataset):
+    print('dataset : ',dataset)
+    
     if dataset == 'phrase':
         phras_file_path = "../../voice_data/organics_ver2/phrase_dict_ver2.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
+    elif dataset == 'phrase_egg_fusion':
+        #egg 추가하기.
+        print('egg')
+        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2_EGG.pickle"),
+                            ]        
     elif dataset == 'a_h':
         phras_file_path = "../../voice_data/organics_ver2/a_high_dict_ver2.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
@@ -135,7 +143,6 @@ def make_data(dataset):
 
 
 class PhraseData():
-    
     phrase_dict = dict()
 
     dict_list = [] # fusion을 위한 dict 리스트

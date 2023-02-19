@@ -1,0 +1,5 @@
+python train.py --wandb True --batch-size 16 --model wav_res_time_attention --dataset phrase --tag attention wav phrase --seed 1004 --es 40 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res_time_attention --dataset phrase --tag attention wav phrase --seed 1005 --es 40 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res_time_attention --dataset phrase --tag attention wav phrase --seed 1006 --es 40 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res_time_attention --dataset phrase --tag attention wav phrase --seed 1007 --es 40 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res_time_attention --dataset phrase --tag attention wav phrase --seed 1008 --es 40 --save-result True --descript "wav phrase resnet18 speaker independent"

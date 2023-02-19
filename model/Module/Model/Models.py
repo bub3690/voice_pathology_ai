@@ -2,12 +2,21 @@ import torch
 import torch.nn as nn # 인공 신경망 모델들 모아놓은 모듈
 import torch.nn.functional as F #그중 자주 쓰이는것들을 F로
 import torchvision.models as models
+import torchvision.transforms
 import torchaudio
 import torchaudio.transforms as T
 import librosa
 
 from torchvision.models import ResNet
 import timm
+
+from torchvision.models.resnet import BasicBlock, ResNet
+from dropblock import DropBlock2D, LinearScheduler
+
+import torchvision.models as models
+from torchvision.models.resnet import ResNet, BasicBlock
+
+
 
 
 
@@ -108,7 +117,7 @@ class Resnet_wav(nn.Module):
             n_fft=n_fft,
             win_length=win_len,
             hop_length=hop_len,
-            n_mels=mel_bins,
+            n_mels=40,
             f_min=0,
             f_max=8000,
             center=True,
@@ -161,6 +170,286 @@ class Resnet_wav(nn.Module):
         #print(out.size())
         out=self.res(out)
         return out
+
+
+
+# 0211 dynamic attention
+
+class MyResNet18(ResNet):
+    def __init__(self,):
+        super(MyResNet18, self).__init__(BasicBlock, [2, 2, 2, 2])
+
+
+    def get_time_attention_layer(self,):
+        #self.layer1_attention = nn.Sequential()
+        
+        
+        self.layer1_time_avg=nn.AdaptiveAvgPool2d(output_size=(32,1))
+        self.layer1_conv1 = nn.Conv1d(64,16,kernel_size=(1,1))
+        self.layer1_batch_norm = nn.BatchNorm2d(16)
+        self.layer1_score_relu = nn.ReLU()
+        self.layer1_conv2 = nn.Conv1d(16,1,kernel_size=(1,1))
+
+        torch.nn.init.kaiming_normal_(self.layer1_conv1.weight)
+        torch.nn.init.kaiming_normal_(self.layer1_conv2.weight)
+
+        self.layer2_time_avg=nn.AdaptiveAvgPool2d(output_size=(16,1))
+        self.layer2_conv1 = nn.Conv1d(128,32,kernel_size=(1,1))
+        self.layer2_batch_norm = nn.BatchNorm2d(32)
+        self.layer2_score_relu = nn.ReLU()
+        self.layer2_conv2 = nn.Conv1d(32,1,kernel_size=(1,1))
+
+        torch.nn.init.kaiming_normal_(self.layer2_conv1.weight)
+        torch.nn.init.kaiming_normal_(self.layer2_conv2.weight)
+
+
+        self.layer3_time_avg=nn.AdaptiveAvgPool2d(output_size=(16,1))
+        self.layer3_conv1 = nn.Conv1d(256,64,kernel_size=(1,1))
+        self.layer3_batch_norm = nn.BatchNorm2d(64)
+        self.layer3_score_relu = nn.ReLU()
+        self.layer3_conv2 = nn.Conv1d(64,1,kernel_size=(1,1))
+
+        torch.nn.init.kaiming_normal_(self.layer3_conv1.weight)
+        torch.nn.init.kaiming_normal_(self.layer3_conv2.weight)        
+
+    def get_freq_attention_layer(self,):
+        #self.layer1_attention = nn.Sequential()
+        
+        
+        self.layer1_freq_conv1 = nn.Conv1d(64,16,kernel_size=(1,1))
+        self.layer1_freq_batch_norm = nn.BatchNorm2d(16)
+        self.layer1_freq_score_relu = nn.ReLU()
+        self.layer1_freq_conv2 = nn.Conv1d(16,1,kernel_size=(1,1))
+
+        torch.nn.init.kaiming_normal_(self.layer1_freq_conv1.weight)
+        torch.nn.init.kaiming_normal_(self.layer1_freq_conv2.weight)
+
+        self.layer2_freq_conv1 = nn.Conv1d(128,32,kernel_size=(1,1))
+        self.layer2_freq_batch_norm = nn.BatchNorm2d(32)
+        self.layer2_freq_score_relu = nn.ReLU()
+        self.layer2_freq_conv2 = nn.Conv1d(32,1,kernel_size=(1,1))
+
+        torch.nn.init.kaiming_normal_(self.layer2_freq_conv1.weight)
+        torch.nn.init.kaiming_normal_(self.layer2_freq_conv2.weight)
+
+        self.layer3_freq_conv1 = nn.Conv1d(256,64,kernel_size=(1,1))
+        self.layer3_freq_batch_norm = nn.BatchNorm2d(64)
+        self.layer3_freq_score_relu = nn.ReLU()
+        self.layer3_freq_conv2 = nn.Conv1d(64,1,kernel_size=(1,1))
+
+        torch.nn.init.kaiming_normal_(self.layer3_freq_conv1.weight)
+        torch.nn.init.kaiming_normal_(self.layer3_freq_conv2.weight)    
+
+
+    def get_layer1_freq_attention(self,x):
+        temperature = 4
+        #score = self.layer1_time_avg(x)
+        score = x.mean(dim=3,keepdim=True)
+        score = self.layer1_freq_conv1(score)
+        #score = score.view(-1,32)
+        score = self.layer1_freq_batch_norm(score)
+        score = self.layer1_freq_score_relu(score)
+        score = self.layer1_freq_conv2(score)
+        #score = score.view(-1,1,32,1)
+        score = torch.softmax(score/temperature,dim=2)
+        return score
+
+    def get_layer2_freq_attention(self,x):
+        temperature = 4
+        #score = self.layer1_time_avg(x)
+        score = x.mean(dim=3,keepdim=True)
+        score = self.layer2_freq_conv1(score)
+        #score = score.view(-1,32)
+        score = self.layer2_freq_batch_norm(score)
+        score = self.layer2_freq_score_relu(score)
+        score = self.layer2_freq_conv2(score)
+        #score = score.view(-1,1,32,1)
+        score = torch.softmax(score/temperature,dim=2)
+        return score
+
+    def get_layer3_freq_attention(self,x):
+        temperature = 4
+        #score = self.layer1_time_avg(x)
+        score = x.mean(dim=3,keepdim=True)
+        score = self.layer3_freq_conv1(score)
+        #score = score.view(-1,32)
+        score = self.layer3_freq_batch_norm(score)
+        score = self.layer3_freq_score_relu(score)
+        score = self.layer3_freq_conv2(score)
+        #score = score.view(-1,1,32,1)
+        score = torch.softmax(score/temperature,dim=2)
+        return score
+
+
+
+    def get_layer1_attention(self,x):
+        temperature = 4
+        #score = self.layer1_time_avg(x)
+        score = x.mean(dim=2,keepdim=True)
+        score = self.layer1_conv1(score)
+        #score = score.view(-1,32)
+        score = self.layer1_batch_norm(score)
+        score = self.layer1_score_relu(score)
+        score = self.layer1_conv2(score)
+        #score = score.view(-1,1,32,1)
+        score = torch.softmax(score/temperature,dim=2)
+        return score
+
+
+    def get_layer2_attention(self,x):
+        temperature = 4
+        #score = self.layer2_time_avg(x)
+        score = x.mean(dim=2,keepdim=True)
+        score = self.layer2_conv1(score)
+        #score = score.view(-1,32)
+        score = self.layer2_batch_norm(score)
+        score = self.layer2_score_relu(score)
+        score = self.layer2_conv2(score)
+        #score = score.view(-1,1,32,1)
+        score = torch.softmax(score/temperature,dim=2)
+        return score
+    
+    def get_layer3_attention(self,x):
+        temperature = 4
+        #score = self.layer2_time_avg(x)
+        score = x.mean(dim=2,keepdim=True)
+        score = self.layer3_conv1(score)
+        #score = score.view(-1,32)
+        score = self.layer3_batch_norm(score)
+        score = self.layer3_score_relu(score)
+        score = self.layer3_conv2(score)
+        #score = score.view(-1,1,32,1)
+        score = torch.softmax(score/temperature,dim=2)
+        return score
+            
+
+    def forward(self, x):
+        # change forward here
+        #print(x.size())
+        x = self.conv1(x) # 64, 64, 151
+        #print('conv1 : ',x.size())
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        #print('maxpool : ',x.size()) # 64, 32, 76
+        x = self.layer1(x) # 64, 32, 76
+        score = self.get_layer1_attention(x)
+        #print(score)
+        x = x.mul(score)
+
+        #print('layer 1 : ',x.size())
+        x = self.layer2(x) # 128, 16, 38
+        score = self.get_layer2_attention(x)
+        #print(score.size())
+        x = x.mul(score)
+
+        #print('layer 2 : ',x.size())
+        x = self.layer3(x) # 256, 8, 19
+        #score = self.get_layer3_attention(x)
+        #x = x.mul(score)
+
+        #print('layer 3 : ',x.size())
+        x = self.layer4(x) # 512, 4, 10
+        #print('layer 4 : ',x.size()) #
+        
+
+        #print(x.size())
+        #score = self.get_atteniton(x)
+        #print("score : ",score.size())
+        #x = x.mul(score)
+        #print('attention : ',x.size())
+        x = self.avgpool(x)
+        #print(x.size())
+        
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return x
+
+
+class ResLayer_attention(nn.Module):
+    def __init__(self,tsne=False):
+        super(ResLayer_attention, self).__init__()
+        self.tsne = tsne
+        #self.model = models.resnet18(pretrained=True).cuda()
+        self.model = MyResNet18()
+        # if you need pretrained weights
+        self.model.load_state_dict(models.resnet18(pretrained=True).state_dict())
+
+        self.model.get_time_attention_layer()
+
+        #removed = list(self.model.layer1.children())[:-1]
+        #removed[0].add_module("droblock2d",DropBlock2D(block_size=128, drop_prob=1.0).cuda())
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=400,
+            win_length=400,
+            hop_length=160,
+            n_mels=128,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+        
+        
+        #self.model.fc = nn.Linear(256, 1000)
+        self.num_ftrs = self.model.fc.out_features
+        #self.model.layer4=Identity()
+        
+        
+        self.fc = nn.Sequential(       
+            nn.Linear(self.num_ftrs, 64),
+                             nn.BatchNorm1d(64),
+                             nn.ReLU(),
+                             nn.Dropout(p=0.5),
+                             nn.Linear(64,50),
+                             nn.BatchNorm1d(50),
+                             nn.ReLU(),
+                             nn.Dropout(p=0.5),
+                             nn.Linear(50,2)
+                            )
+ 
+        #specaugment
+        self.transform = torchvision.transforms.RandomApply([ torchvision.transforms.Compose([T.TimeMasking(time_mask_param=80),
+                                                                     T.FrequencyMasking(freq_mask_param=40),],)
+                                                    ],
+                                                    p=0.5)                            
+
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+
+    def forward(self, x,augment=False):
+        x = self.mel_scale(x)
+        x = torchaudio.functional.amplitude_to_DB(x,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(x)) )
+        x = x.squeeze(dim=1)
+        x = ResLayer_attention.batch_min_max(x)
+
+        if augment:
+            x = self.transform(x)        
+        x = torch.stack([x,x,x],axis=1)
+        x = self.model(x)
+        if self.tsne:
+            return x
+        x  = self.fc(x)
+        return x
+
+
+# def model_initialize(tsne=False):
+#     model = ResLayer(tsne).cuda()
+#     return model
+
+# model=model_initialize(tsne=False)
+
+
+
+# model = my_resnet18(drop_prob=0.3, block_size=18)
+# #if you need pretrained weights
+# model.load_state_dict(models.resnet18(pretrained=True).state_dict())
 
 
 class Resnet34_wav(nn.Module):
@@ -294,6 +583,83 @@ class Resnet_wav_logspectro(nn.Module):
         #print(out.size())
         out=self.res(out)
         return out
+
+
+class ResLayer_wav_fusion_lstm(nn.Module):
+    def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(ResLayer_wav_fusion_lstm, self).__init__()
+        self.wav_model = models.resnet18(pretrained=True).cuda() 
+        self.egg_model = models.resnet18(pretrained=True).cuda() 
+        self.num_ftrs = self.wav_model.fc.out_features
+        hidden_size = 256
+        #self.tsne = tsne
+        self.lstm = nn.LSTM(input_size = 1,
+                            hidden_size=hidden_size,
+                            num_layers = 1,
+                            batch_first = True,
+                            bidirectional = True)
+                            
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+                
+        #self.fc = nn.Linear(2, 2),
+        self.fc = nn.Sequential(       
+            nn.Linear(hidden_size*2, 64),
+                             nn.BatchNorm1d(64),
+                             nn.ReLU(),
+                             nn.Dropout(p=0.5),
+                             nn.Linear(64,50),
+                             nn.BatchNorm1d(50),
+                             nn.ReLU(),
+                             nn.Dropout(p=0.5),
+                             nn.Linear(50,2)
+                            )
+
+    #@classmethod   
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+
+    def forward(self, x_list, augment=False):
+        wav = self.mel_scale(x_list[:,0,...])
+        wav = wav.squeeze(1)
+        wav = torchaudio.functional.amplitude_to_DB(wav,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(wav)) ) 
+        wav = ResLayer_wav_fusion_lstm.batch_min_max(wav)        
+
+        egg = self.mel_scale(x_list[:,1,...])
+        egg = egg.squeeze(1)
+        egg = torchaudio.functional.amplitude_to_DB(egg,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(egg)) )
+        egg = ResLayer_wav_fusion_lstm.batch_min_max(egg)
+                
+
+        wav = torch.stack([wav,wav,wav],axis=1)
+        egg = torch.stack([egg,egg,egg],axis=1)
+
+        wav = self.wav_model(wav)
+        egg = self.egg_model(egg)
+        x = torch.concat([wav,egg]  ,axis=1)
+        x = x.unsqueeze(2)
+        x,(hidden_state,cell_state) = self.lstm(x)
+        hidden_state = torch.cat([hidden_state[-1], hidden_state[-2]], dim=-1)
+        # if self.tsne:
+        #     return hidden_state
+
+        x  = self.fc(hidden_state)
+        return x
+
 
 class Resnet_wav_latefusion(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
@@ -932,6 +1298,7 @@ def se_resnet18(num_classes=2):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
+    # fc layer 추가해서 고쳐보기
     model = timm.create_model('legacy_seresnet18',num_classes=2,pretrained=True)
     return model
 
@@ -946,12 +1313,19 @@ def se_resnet18(num_classes=2):
 
 
 
-def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_config):
+def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_config,tsne=False):
     if model_name=='msf':
         model = MSF(mfcc_run_config['n_mfcc']).cuda()
     elif model_name=='wav_res':
         #model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()      
+    elif model_name=='wav_res_phrase_eggfusion_lstm':
+        model = ResLayer_wav_fusion_lstm(mel_bins=mel_run_config['n_mels'],
+                                         win_len=mel_run_config['win_length'],
+                                         n_fft=mel_run_config["n_fft"],
+                                         hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_res_time_attention':
+        model = ResLayer_attention().cuda()
     elif model_name=='wav_res_splicing':
         model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet34_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()

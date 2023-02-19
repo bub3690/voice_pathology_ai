@@ -68,7 +68,7 @@ def main():
                         help='Use wandb log')                        
     parser.add_argument('--model',type=str, default='baseline',
                         help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,\
-                            wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel]')
+                            wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel,wav_res_phrase_eggfusion_lstm]')
     parser.add_argument('--dataset',type=str, default='phrase',
                         help='list : [phrase, a_h, a_n, a_l, a_fusion ... ]')
     parser.add_argument('--name',type=str, default='res18',
@@ -80,6 +80,7 @@ def main():
     parser.add_argument("--augment", nargs='+', type=str,help="[crop,spec_augment]",default=[])
     parser.add_argument('--tag',type=str,default='',nargs='+',help='tag for wandb')
     parser.add_argument('--seed',type=int,default=1004,help='set the test seed')
+    parser.add_argument('--es',type=int,default=10,help='set the earlystop')
     parser.add_argument('--save-result',type=bool,default=False,help='save result of validation set')
     parser.add_argument('--descript',type=str, default='baseline. speaker indep',
                             help='write config for wandb')
@@ -184,7 +185,7 @@ def main():
 
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         print(check_path)
-        early_stopping = EarlyStopping(patience = 10, verbose = True, path=check_path)
+        early_stopping = EarlyStopping(patience = args.es, verbose = True, path=check_path)
         train_loader,validation_loader = load_data( X_train_list[data_ind-1],
                                                     X_valid_list[data_ind-1],
                                                     Y_train_list[data_ind-1],
