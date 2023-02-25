@@ -712,9 +712,9 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         self.egg_model = models.resnet18(pretrained=True).cuda()
 
         self.mmtm1 = MMTM(64,64,4)
-        #self.mmtm2 = MMTM(128,128,4)      
+        self.mmtm2 = MMTM(128,128,4)      
         self.mmtm3 = MMTM(256,256,4)     
-        #self.mmtm4 = MMTM(512,512,4)  
+        self.mmtm4 = MMTM(512,512,4)  
 
         # self.wav_model = MyResNet18()
         # # if you need pretrained weights
@@ -808,7 +808,7 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         egg = self.egg_model.layer2(egg) # 128, 16, 38
 
         #### SECOND MMTM ####
-        #wav, egg = self.mmtm2(wav, egg)
+        wav, egg = self.mmtm2(wav, egg)
 
         ##### THIRD RESIDUAL #####
         wav = self.wav_model.layer3(wav) # 256, 8, 19
@@ -822,7 +822,7 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         egg = self.egg_model.layer4(egg) # 512, 4, 10
 
         #### FOURTH MMTM ####
-        #wav, egg = self.mmtm4(wav, egg)        
+        wav, egg = self.mmtm4(wav, egg)        
 
         wav = self.wav_model.avgpool(wav)
         egg = self.egg_model.avgpool(egg)
