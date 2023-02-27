@@ -35,6 +35,11 @@ import json
 #import torchaudio.functional as F
 
 
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+
+
 
 
 
@@ -312,9 +317,6 @@ def main():
     # kfold의 confusion matrix는 계산 방법이 다르다.
     # 모델을 각각 불러와서 test set을 평가한다.
 
-    from sklearn.metrics import confusion_matrix
-    from sklearn.metrics import accuracy_score
-    from sklearn.metrics import f1_score
 
 
     test_loader = load_test_data(

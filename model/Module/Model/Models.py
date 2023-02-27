@@ -175,9 +175,9 @@ class Resnet_wav(nn.Module):
 
 # 0211 dynamic attention
 
-class MyResNet18(ResNet):
+class DynamicResnet18(ResNet):
     def __init__(self,):
-        super(MyResNet18, self).__init__(BasicBlock, [2, 2, 2, 2])
+        super(DynamicResnet18, self).__init__(BasicBlock, [2, 2, 2, 2])
 
 
     def get_time_attention_layer(self,):
@@ -242,7 +242,7 @@ class MyResNet18(ResNet):
 
 
     def get_layer1_freq_attention(self,x):
-        temperature = 4
+        temperature = 1
         #score = self.layer1_time_avg(x)
         score = x.mean(dim=3,keepdim=True)
         score = self.layer1_freq_conv1(score)
@@ -255,7 +255,7 @@ class MyResNet18(ResNet):
         return score
 
     def get_layer2_freq_attention(self,x):
-        temperature = 4
+        temperature = 1
         #score = self.layer1_time_avg(x)
         score = x.mean(dim=3,keepdim=True)
         score = self.layer2_freq_conv1(score)
@@ -268,7 +268,7 @@ class MyResNet18(ResNet):
         return score
 
     def get_layer3_freq_attention(self,x):
-        temperature = 4
+        temperature = 1
         #score = self.layer1_time_avg(x)
         score = x.mean(dim=3,keepdim=True)
         score = self.layer3_freq_conv1(score)
@@ -283,21 +283,22 @@ class MyResNet18(ResNet):
 
 
     def get_layer1_attention(self,x):
-        temperature = 4
+        temperature = 1
         #score = self.layer1_time_avg(x)
-        score = x.mean(dim=2,keepdim=True)
+        score = x.mean(dim=2,keepdim=True)# batch,64,1,76
         score = self.layer1_conv1(score)
         #score = score.view(-1,32)
         score = self.layer1_batch_norm(score)
         score = self.layer1_score_relu(score)
         score = self.layer1_conv2(score)
         #score = score.view(-1,1,32,1)
-        score = torch.softmax(score/temperature,dim=2)
+        score = torch.softmax(score/temperature,dim=3)
+        #print(score)
         return score
 
 
     def get_layer2_attention(self,x):
-        temperature = 4
+        temperature = 1
         #score = self.layer2_time_avg(x)
         score = x.mean(dim=2,keepdim=True)
         score = self.layer2_conv1(score)
@@ -306,11 +307,11 @@ class MyResNet18(ResNet):
         score = self.layer2_score_relu(score)
         score = self.layer2_conv2(score)
         #score = score.view(-1,1,32,1)
-        score = torch.softmax(score/temperature,dim=2)
+        score = torch.softmax(score/temperature,dim=3)
         return score
     
     def get_layer3_attention(self,x):
-        temperature = 4
+        temperature = 1
         #score = self.layer2_time_avg(x)
         score = x.mean(dim=2,keepdim=True)
         score = self.layer3_conv1(score)
@@ -319,7 +320,7 @@ class MyResNet18(ResNet):
         score = self.layer3_score_relu(score)
         score = self.layer3_conv2(score)
         #score = score.view(-1,1,32,1)
-        score = torch.softmax(score/temperature,dim=2)
+        score = torch.softmax(score/temperature,dim=3)
         return score
             
 
@@ -332,14 +333,16 @@ class MyResNet18(ResNet):
         x = self.relu(x)
         x = self.maxpool(x)
         #print('maxpool : ',x.size()) # 64, 32, 76
-        x = self.layer1(x) # 64, 32, 76
-        score = self.get_layer1_attention(x)
+        x = self.layer1(x) # batch, 64, 32, 76
+        score = self.get_layer1_freq_attention(x)
+        #print('score :',score.size(),'x : ',x.size())
         #print(score)
+
         x = x.mul(score)
 
         #print('layer 1 : ',x.size())
         x = self.layer2(x) # 128, 16, 38
-        score = self.get_layer2_attention(x)
+        score = self.get_layer2_freq_attention(x)
         #print(score.size())
         x = x.mul(score)
 
@@ -371,12 +374,12 @@ class ResLayer_attention(nn.Module):
         super(ResLayer_attention, self).__init__()
         self.tsne = tsne
         #self.model = models.resnet18(pretrained=True).cuda()
-        self.model = MyResNet18()
+        self.model = DynamicResnet18()
         # if you need pretrained weights
         self.model.load_state_dict(models.resnet18(pretrained=True).state_dict())
 
-        self.model.get_time_attention_layer()
-
+        #self.model.get_time_attention_layer()
+        self.model.get_freq_attention_layer()
         #removed = list(self.model.layer1.children())[:-1]
         #removed[0].add_module("droblock2d",DropBlock2D(block_size=128, drop_prob=1.0).cuda())
         self.mel_scale = T.MelSpectrogram(
