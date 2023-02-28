@@ -96,6 +96,7 @@ class ResLayer34(nn.Module):
 
 class Resnet_wav(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
         super(Resnet_wav, self).__init__()
         # if "center=True" of stft, padding = win_len / 2
 
@@ -117,7 +118,181 @@ class Resnet_wav(nn.Module):
             n_fft=n_fft,
             win_length=win_len,
             hop_length=hop_len,
-            n_mels=40,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+
+        # self.mel_scale = T.MelSpectrogram(
+        #     sample_rate=16000,
+        #     n_fft=n_fft,
+        #     win_length=win_len,
+        #     hop_length=hop_len,
+        #     n_mels=mel_bins,
+        #     f_min=0,
+        #     f_max=8000,
+        #     power=1.0,
+        #     wkwargs={"periodic":False},
+        #     window_fn=torch.hann_window
+        # )
+
+        stretch_factor=0.8
+        self.spec_aug = torch.nn.Sequential(
+            #T.TimeStretch(stretch_factor, fixed_rate=True),
+            T.FrequencyMasking(freq_mask_param=80),
+            T.TimeMasking(time_mask_param=40),
+        )
+
+    #@classmethod
+    def sample_min_max(batch):
+        batch_size,height,width = batch.size(0),batch.size(1),batch.size(2)
+        batch = batch.contiguous().view(batch.size(0), -1)
+        batch -= batch.min(1, keepdim=True)[0]
+        batch /= batch.max(1, keepdim=True)[0]
+        batch = batch.view(batch_size, height, width)
+        return batch
+
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+    
+    def take_log(feature):
+        amp2db = torchaudio.transforms.AmplitudeToDB(stype="amplitude")
+        amp2db.amin=1e-5
+        return amp2db(feature).clamp(min=-50,max=80)
+    
+
+    def forward(self, x,augment=False):
+        #spec = self.spec(x)
+        #mel = self.mel_spectrogram(x)
+        mel = self.mel_scale(x)
+        
+        mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
+        mel = torch.squeeze(mel,dim=1)        
+        #mel = (mel-mel.min())/(mel.max()-mel.min())
+        #mel = Resnet_wav.take_log(mel)
+        
+        mel = Resnet_wav.batch_min_max(mel)
+
+        #mel = self.power_to_db(mel)
+        #mel = self.spec_aug(mel)
+        #mel = (mel-torch.mean(mel))/torch.std(mel)
+        #out = out.mean(axis=2)
+        #out=self.fc(out)
+        
+        #concated_feature = torch.concat([mel,out],axis=2)
+
+        out = torch.stack([mel,mel,mel],axis=1)
+        #print(out.size())
+        out=self.res(out)
+        return out
+
+
+class Resnet18_custom(ResNet):
+    def __init__(self,):
+        super(Resnet18_custom, self).__init__(BasicBlock, [2, 2, 2, 2])
+
+
+        self.num_ftrs = self.fc.in_features+20
+
+        self.fc = nn.Sequential(       
+            nn.Linear(1024, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                            )
+        # self.fc = nn.Sequential(nn.Linear(20,2))
+
+        input_size=512
+        hidden_size=512 # time size
+        self.lstm = nn.LSTM(input_size = input_size,
+                            hidden_size=hidden_size,
+                            num_layers = 1,
+                            batch_first = True,
+                            bidirectional = True)
+        self.linear1 = nn.Linear(2048,512)
+            
+
+
+    def forward(self, x):
+        # change forward here
+        #print(x.size())
+        x = self.conv1(x) # 64, 64, 151
+        #print('conv1 : ',x.size())
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        #print('maxpool : ',x.size()) # 64, 32, 76
+        x = self.layer1(x) # batch, 64, 32, 76
+
+
+
+
+        x = self.layer2(x) # 128, 16, 38
+
+        x = self.layer3(x) # 256, 8, 19
+
+        x = self.layer4(x) # 512, 4, 10
+        #print('layer 4 : ',x.size()) #
+
+        #여기서 lstm 투입
+        #Channel 1d cnn -> lstm(feature 32)
+        batch_size = x.size(0)
+        T = x.size(3)
+        temporal_feature = x.view(batch_size,-1,T) # [batch_size, T==width, num_features==channels*height] bs,512,4,10 -> bs,10,512*4
+        temporal_feature = torch.transpose(temporal_feature,1,2)
+        temporal_feature = self.linear1(temporal_feature)        
+
+        _,(temporal_feature,cell_state) = self.lstm(temporal_feature)
+        temporal_feature = torch.cat([temporal_feature[-1], temporal_feature[-2]], dim=-1)#batch,20
+
+        
+        #x = self.avgpool(x)
+
+        #print(x.size())
+        
+        #x = torch.flatten(x, 1)
+        #x = torch.cat([x,temporal_feature],dim=-1)        
+        #x = self.fc(x)
+        x = self.fc(temporal_feature)
+        return x
+
+
+class Resnet_wav_temporal(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(Resnet_wav_temporal, self).__init__()
+        # if "center=True" of stft, padding = win_len / 2
+
+        #self.num_ftrs = 63
+
+        self.res = Resnet18_custom()
+
+
+        # self.spec = T.Spectrogram(n_fft=win_len,hop_length=hop_len,power=2)
+
+        # self.mel_scale = T.MelScale(
+        #     n_mels=mel_bins, sample_rate=16000, n_stft=win_len // 2 + 1
+        #     )
+
+        self.power_to_db = T.AmplitudeToDB(stype="power", top_db=80)
+
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
             f_min=0,
             f_max=8000,
             center=True,
@@ -147,6 +322,7 @@ class Resnet_wav(nn.Module):
     def batch_min_max(batch):
         batch = (batch-batch.min())/(batch.max()-batch.min())
         return batch
+    
 
     def forward(self, x,augment=False):
         #spec = self.spec(x)
@@ -156,7 +332,7 @@ class Resnet_wav(nn.Module):
         mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
         mel = torch.squeeze(mel,dim=1)        
         #mel = (mel-mel.min())/(mel.max()-mel.min())
-        mel = Resnet_wav.batch_min_max(mel)
+        mel = Resnet_wav_temporal.batch_min_max(mel)
 
         #mel = self.power_to_db(mel)
         #mel = self.spec_aug(mel)
@@ -172,7 +348,6 @@ class Resnet_wav(nn.Module):
         return out
 
 
-
 # 0211 dynamic attention
 
 class DynamicResnet18(ResNet):
@@ -180,7 +355,7 @@ class DynamicResnet18(ResNet):
         super(DynamicResnet18, self).__init__(BasicBlock, [2, 2, 2, 2])
 
 
-    def get_time_attention_layer(self,):
+    def get_time_attention_layer(self,basis_kernel=1):
         #self.layer1_attention = nn.Sequential()
         
         
@@ -188,7 +363,7 @@ class DynamicResnet18(ResNet):
         self.layer1_conv1 = nn.Conv1d(64,16,kernel_size=(1,1))
         self.layer1_batch_norm = nn.BatchNorm2d(16)
         self.layer1_score_relu = nn.ReLU()
-        self.layer1_conv2 = nn.Conv1d(16,1,kernel_size=(1,1))
+        self.layer1_conv2 = nn.Conv1d(16,basis_kernel,kernel_size=(1,1))
 
         torch.nn.init.kaiming_normal_(self.layer1_conv1.weight)
         torch.nn.init.kaiming_normal_(self.layer1_conv2.weight)
@@ -197,7 +372,7 @@ class DynamicResnet18(ResNet):
         self.layer2_conv1 = nn.Conv1d(128,32,kernel_size=(1,1))
         self.layer2_batch_norm = nn.BatchNorm2d(32)
         self.layer2_score_relu = nn.ReLU()
-        self.layer2_conv2 = nn.Conv1d(32,1,kernel_size=(1,1))
+        self.layer2_conv2 = nn.Conv1d(32,basis_kernel,kernel_size=(1,1))
 
         torch.nn.init.kaiming_normal_(self.layer2_conv1.weight)
         torch.nn.init.kaiming_normal_(self.layer2_conv2.weight)
@@ -207,42 +382,51 @@ class DynamicResnet18(ResNet):
         self.layer3_conv1 = nn.Conv1d(256,64,kernel_size=(1,1))
         self.layer3_batch_norm = nn.BatchNorm2d(64)
         self.layer3_score_relu = nn.ReLU()
-        self.layer3_conv2 = nn.Conv1d(64,1,kernel_size=(1,1))
+        self.layer3_conv2 = nn.Conv1d(64,basis_kernel,kernel_size=(1,1))
 
         torch.nn.init.kaiming_normal_(self.layer3_conv1.weight)
-        torch.nn.init.kaiming_normal_(self.layer3_conv2.weight)        
+        torch.nn.init.kaiming_normal_(self.layer3_conv2.weight)
 
-    def get_freq_attention_layer(self,):
+            
+
+    def get_freq_attention_layer(self,basis_kernel=4):
         #self.layer1_attention = nn.Sequential()
         
         
         self.layer1_freq_conv1 = nn.Conv1d(64,16,kernel_size=(1,1))
         self.layer1_freq_batch_norm = nn.BatchNorm2d(16)
         self.layer1_freq_score_relu = nn.ReLU()
-        self.layer1_freq_conv2 = nn.Conv1d(16,1,kernel_size=(1,1))
+        self.layer1_freq_conv2 = nn.Conv1d(16,basis_kernel,kernel_size=(1,1))
 
         torch.nn.init.kaiming_normal_(self.layer1_freq_conv1.weight)
         torch.nn.init.kaiming_normal_(self.layer1_freq_conv2.weight)
+        self.layer1_weight = nn.Parameter(torch.randn(basis_kernel, 64, 64, 3, 3),
+                                                requires_grad=True)
+
 
         self.layer2_freq_conv1 = nn.Conv1d(128,32,kernel_size=(1,1))
         self.layer2_freq_batch_norm = nn.BatchNorm2d(32)
         self.layer2_freq_score_relu = nn.ReLU()
-        self.layer2_freq_conv2 = nn.Conv1d(32,1,kernel_size=(1,1))
+        self.layer2_freq_conv2 = nn.Conv1d(32,basis_kernel,kernel_size=(1,1))
 
         torch.nn.init.kaiming_normal_(self.layer2_freq_conv1.weight)
         torch.nn.init.kaiming_normal_(self.layer2_freq_conv2.weight)
+        self.layer2_weight = nn.Parameter(torch.randn(basis_kernel, 128, 128, 3, 3),
+                                                requires_grad=True)        
 
         self.layer3_freq_conv1 = nn.Conv1d(256,64,kernel_size=(1,1))
         self.layer3_freq_batch_norm = nn.BatchNorm2d(64)
         self.layer3_freq_score_relu = nn.ReLU()
-        self.layer3_freq_conv2 = nn.Conv1d(64,1,kernel_size=(1,1))
+        self.layer3_freq_conv2 = nn.Conv1d(64,basis_kernel,kernel_size=(1,1))
 
         torch.nn.init.kaiming_normal_(self.layer3_freq_conv1.weight)
-        torch.nn.init.kaiming_normal_(self.layer3_freq_conv2.weight)    
+        torch.nn.init.kaiming_normal_(self.layer3_freq_conv2.weight)
+        self.layer3_weight = nn.Parameter(torch.randn(basis_kernel, 256, 256, 3, 3),
+                                                requires_grad=True)
 
 
     def get_layer1_freq_attention(self,x):
-        temperature = 1
+        temperature = 4
         #score = self.layer1_time_avg(x)
         score = x.mean(dim=3,keepdim=True)
         score = self.layer1_freq_conv1(score)
@@ -255,7 +439,7 @@ class DynamicResnet18(ResNet):
         return score
 
     def get_layer2_freq_attention(self,x):
-        temperature = 1
+        temperature = 4
         #score = self.layer1_time_avg(x)
         score = x.mean(dim=3,keepdim=True)
         score = self.layer2_freq_conv1(score)
@@ -283,7 +467,7 @@ class DynamicResnet18(ResNet):
 
 
     def get_layer1_attention(self,x):
-        temperature = 1
+        temperature = 32
         #score = self.layer1_time_avg(x)
         score = x.mean(dim=2,keepdim=True)# batch,64,1,76
         score = self.layer1_conv1(score)
@@ -292,13 +476,13 @@ class DynamicResnet18(ResNet):
         score = self.layer1_score_relu(score)
         score = self.layer1_conv2(score)
         #score = score.view(-1,1,32,1)
-        score = torch.softmax(score/temperature,dim=3)
+        score = torch.softmax(score/temperature,dim=2)
         #print(score)
-        return score
+        return score#.unsqueeze(2)
 
 
     def get_layer2_attention(self,x):
-        temperature = 1
+        temperature = 32
         #score = self.layer2_time_avg(x)
         score = x.mean(dim=2,keepdim=True)
         score = self.layer2_conv1(score)
@@ -307,11 +491,11 @@ class DynamicResnet18(ResNet):
         score = self.layer2_score_relu(score)
         score = self.layer2_conv2(score)
         #score = score.view(-1,1,32,1)
-        score = torch.softmax(score/temperature,dim=3)
-        return score
+        score = torch.softmax(score/temperature,dim=2)#bs,ker,freq,1
+        return score#.unsqueeze(2)
     
     def get_layer3_attention(self,x):
-        temperature = 1
+        temperature = 32
         #score = self.layer2_time_avg(x)
         score = x.mean(dim=2,keepdim=True)
         score = self.layer3_conv1(score)
@@ -320,8 +504,8 @@ class DynamicResnet18(ResNet):
         score = self.layer3_score_relu(score)
         score = self.layer3_conv2(score)
         #score = score.view(-1,1,32,1)
-        score = torch.softmax(score/temperature,dim=3)
-        return score
+        score = torch.softmax(score/temperature,dim=2)
+        return score#.unsqueeze(2)
             
 
     def forward(self, x):
@@ -334,22 +518,49 @@ class DynamicResnet18(ResNet):
         x = self.maxpool(x)
         #print('maxpool : ',x.size()) # 64, 32, 76
         x = self.layer1(x) # batch, 64, 32, 76
-        score = self.get_layer1_freq_attention(x)
+        batch_size = x.size(0)
+        score = self.get_layer1_freq_attention(x)# bs , n_ker,n_freq,1
+        score = score.unsqueeze(2)
+        #score_time = self.get_layer1_attention(x)
+        aggregate_weight = self.layer1_weight.view(-1, 64, 3, 3)
+        #print(aggregate_weight.size())
+        x = F.conv2d(x, weight=aggregate_weight, bias=None, stride=1, padding=1)
+        #print(x.size())
+        x = x.view(batch_size, 4, 64, x.size(-2), x.size(-1))# batch, n_ker,n_channel,n_freq,n_frame
         #print('score :',score.size(),'x : ',x.size())
-        #print(score)
 
-        x = x.mul(score)
+        #print(score)
+        x = torch.sum(x * score, dim=1)
+        #x = x.sum(score)
+        #x = x.mul(score_time)
+
 
         #print('layer 1 : ',x.size())
         x = self.layer2(x) # 128, 16, 38
         score = self.get_layer2_freq_attention(x)
+        score = score.unsqueeze(2)
+        #score_time = self.get_layer1_attention(x)
+        aggregate_weight = self.layer2_weight.view(-1, 128, 3, 3)
+        #print(aggregate_weight.size())
+        x = F.conv2d(x, weight=aggregate_weight, bias=None, stride=1, padding=1)
+        #print(x.size())
+        x = x.view(batch_size, 4, 128, x.size(-2), x.size(-1))# batch, n_ker,n_channel,n_freq,n_frame
+        #print('score :',score.size(),'x : ',x.size())
+
+        #print(score)
+        x = torch.sum(x * score, dim=1)
+        #score_time = self.get_layer2_attention(x)        
         #print(score.size())
-        x = x.mul(score)
+        #x = x.sum(score)
+        #x = x.mul(score_time)        
 
         #print('layer 2 : ',x.size())
         x = self.layer3(x) # 256, 8, 19
-        #score = self.get_layer3_attention(x)
+        #score = self.get_layer3_freq_attention(x)
+        #score_time = self.get_layer3_attention(x)
+
         #x = x.mul(score)
+        #x = x.mul(score_time)     
 
         #print('layer 3 : ',x.size())
         x = self.layer4(x) # 512, 4, 10
@@ -378,8 +589,9 @@ class ResLayer_attention(nn.Module):
         # if you need pretrained weights
         self.model.load_state_dict(models.resnet18(pretrained=True).state_dict())
 
-        #self.model.get_time_attention_layer()
+        self.model.get_time_attention_layer()
         self.model.get_freq_attention_layer()
+        
         #removed = list(self.model.layer1.children())[:-1]
         #removed[0].add_module("droblock2d",DropBlock2D(block_size=128, drop_prob=1.0).cuda())
         self.mel_scale = T.MelSpectrogram(
@@ -1482,7 +1694,22 @@ def se_resnet18(num_classes=2):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     # fc layer 추가해서 고쳐보기
-    model = timm.create_model('legacy_seresnet18',num_classes=2,pretrained=True)
+    model = timm.create_model('legacy_seresnet18',num_classes=1000,pretrained=True)
+    print(model)
+    num_ftrs=model.last_linear.out_features
+    
+    model.fc = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                        )
+
     return model
 
 
@@ -1501,7 +1728,7 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = MSF(mfcc_run_config['n_mfcc']).cuda()
     elif model_name=='wav_res':
         #model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
-        model = Resnet_wav(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()      
+        model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()      
     elif model_name=='wav_res_phrase_eggfusion_lstm':
         model = ResLayer_wav_fusion_lstm(mel_bins=mel_run_config['n_mels'],
                                          win_len=mel_run_config['win_length'],
