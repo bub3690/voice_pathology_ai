@@ -73,7 +73,8 @@ def main():
                         help='Use wandb log')                        
     parser.add_argument('--model',type=str, default='baseline',
                         help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,\
-                            wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel,wav_res_phrase_eggfusion_lstm,wav_res_phrase_eggfusion_mmtm ]')
+                            wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel,\
+                                wav_res_phrase_eggfusion_lstm,wav_res_phrase_eggfusion_mmtm, wav_res_smile ]')
     parser.add_argument('--dataset',type=str, default='phrase',
                         help='list : [phrase, a_h, a_n, a_l, a_fusion ... ]')
     parser.add_argument('--name',type=str, default='res18',
