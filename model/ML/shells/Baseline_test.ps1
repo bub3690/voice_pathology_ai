@@ -1,0 +1,5 @@
+python train.py --batch-size 16 --model baseline --dataset phrase --tag baseline --seed 1004 --wandb True  --descript "baseline speaker independant. no duplicated. hyp tuning. mel spectrogram. without norm"
+python train.py --batch-size 16 --model baseline --dataset phrase --tag baseline --seed 1005 --wandb True  --descript "baseline speaker independant. no duplicated. hyp tuning. mel spectrogram. without norm"
+python train.py --batch-size 16 --model baseline --dataset phrase --tag baseline --seed 1006 --wandb True  --descript "baseline speaker independant. no duplicated. hyp tuning. mel spectrogram. without norm"
+python train.py --batch-size 16 --model baseline --dataset phrase --tag baseline --seed 1007 --wandb True  --descript "baseline speaker independant. no duplicated. hyp tuning. mel spectrogram. without norm"
+python train.py --batch-size 16 --model baseline --dataset phrase --tag baseline --seed 1008 --wandb True  --descript "baseline speaker independant. no duplicated. hyp tuning. mel spectrogram. without norm"

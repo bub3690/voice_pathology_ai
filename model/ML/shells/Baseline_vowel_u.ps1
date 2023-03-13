@@ -1,0 +1,5 @@
+python train.py --wandb True --batch-size 16 --model wav_res --dataset u_n --tag baseline wav u_n --seed 1004 --save-result True --descript "wav u_n resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res --dataset u_n --tag baseline wav u_n --seed 1005 --save-result True --descript "wav u_n resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res --dataset u_n --tag baseline wav u_n --seed 1006 --save-result True --descript "wav u_n resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res --dataset u_n --tag baseline wav u_n --seed 1007 --save-result True --descript "wav u_n resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res --dataset u_n --tag baseline wav u_n --seed 1008 --save-result True --descript "wav u_n resnet18 speaker independent"
