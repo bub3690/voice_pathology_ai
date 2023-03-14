@@ -1658,7 +1658,8 @@ def load_data(
     model,
     dataset,
     augment,
-    augment_params
+    augment_params,
+    num_workers=0
     ):
     
     if model=='baseline':
@@ -1744,6 +1745,7 @@ def load_data(
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
 
@@ -1759,6 +1761,7 @@ def load_data(
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 )
     elif model=='wav_res_phrase_eggfusion_lstm':
@@ -2224,7 +2227,7 @@ def load_data(
     return train_loader,validation_loader
 
 
-def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,scaler_list,model,dataset):
+def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,scaler_list,model,dataset,num_workers=0):
     if model=='baseline':
         test_loader = DataLoader(dataset = svd_dataset(
                                             X_test,
@@ -2269,6 +2272,7 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
     elif model=='wav_res_phrase_eggfusion_lstm':

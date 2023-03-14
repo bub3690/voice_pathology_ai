@@ -83,6 +83,8 @@ def main():
                         help='true or false to get std normalize')
     parser.add_argument('--project-name',type=str, default='SVD-voice-disorder',
                             help='project name for wandb')
+    parser.add_argument('--workers',type=int, default=0,
+                            help='num_workers')    
     parser.add_argument("--augment", nargs='+', type=str,help="[crop,spec_augment]",default=[])
     parser.add_argument('--tag',type=str,default='',nargs='+',help='tag for wandb')
     parser.add_argument('--seed',type=int,default=1004,help='set the test seed')
@@ -222,7 +224,8 @@ def main():
                                                     args.model,
                                                     args.dataset,
                                                     args.augment,
-                                                    augment_params)
+                                                    augment_params,
+                                                    num_workers=args.workers)
         best_train_acc=0 # accuracy 기록용
         best_valid_acc=0
         
@@ -312,7 +315,8 @@ def main():
                                             norm_std_list,
                                             scaler_list,
                                             args.model,
-                                            args.dataset
+                                            args.dataset,
+                                            num_workers=args.workers
                                         )
             predictions,answers,test_loss,validation_outputs,validation_files = test_evaluate(model,args.model,test_loader, DEVICE, criterion,save_result=True)
 
