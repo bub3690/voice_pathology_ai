@@ -571,6 +571,9 @@ class svd_dataset_wav_smile(Dataset):
                 y_label_list,
                 classes,
                 mel_params,
+                norm_mean_list=None,
+                norm_std_list=None,
+                scaler_list=None,         
                 dataset='phrase',
                 transform=None,
                 is_train=False,):
@@ -601,6 +604,13 @@ class svd_dataset_wav_smile(Dataset):
             multiprocessing=True
         )        
         #noramlize 관련
+
+        if norm_mean_list != None and len(norm_mean_list) >0:
+            self.norm_mean_list = norm_mean_list
+            self.norm_std_list = norm_std_list
+
+        if scaler_list != None and len(scaler_list)>0:
+            self.scaler_list = scaler_list
 
         #augmentation들
         # self.crop = None
@@ -649,6 +659,10 @@ class svd_dataset_wav_smile(Dataset):
                     )
         #####
 
+        #handcrafted normalize
+        if self.scaler_list != None:
+            handcrafted = self.scaler_list[0].transform(handcrafted.to_numpy())
+
         length = self.mel_params["sr"]*3 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
         pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
         sig = pad1d(sig,length)
@@ -662,8 +676,11 @@ class svd_dataset_wav_smile(Dataset):
 
         sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
         sig=sig.unsqueeze(0)
-
-        handcrafted = torch.from_numpy(handcrafted.to_numpy()).type(torch.float32).squeeze(0)
+        
+        if self.scaler_list == None or len(self.scaler_list)==0:
+            handcrafted = torch.from_numpy(handcrafted.to_numpy()).type(torch.float32).squeeze(0)
+        else:
+            handcrafted = torch.from_numpy(handcrafted).type(torch.float32).squeeze(0)
 
 
         
@@ -1637,6 +1654,7 @@ def load_data(
     is_normalize,
     norm_mean_list,
     norm_std_list,
+    scaler_list,
     model,
     dataset,
     augment,
@@ -1718,6 +1736,7 @@ def load_data(
                                                     X_train_list,
                                                     Y_train_list,
                                                     classes,
+                                                    scaler_list=scaler_list,                                               
                                                     mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
                                                     is_train = True,
@@ -1733,6 +1752,7 @@ def load_data(
                                                     X_valid_list,
                                                     Y_valid_list,
                                                     classes,
+                                                    scaler_list=scaler_list,                                            
                                                     mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
                                                     dataset= dataset
@@ -2204,7 +2224,7 @@ def load_data(
     return train_loader,validation_loader
 
 
-def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,model,dataset):
+def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,scaler_list,model,dataset):
     if model=='baseline':
         test_loader = DataLoader(dataset = svd_dataset(
                                             X_test,
@@ -2242,6 +2262,7 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                     X_test,
                                                     Y_test,
                                                     classes,
+                                                    scaler_list=scaler_list,                                          
                                                     mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
                                                     dataset= dataset,

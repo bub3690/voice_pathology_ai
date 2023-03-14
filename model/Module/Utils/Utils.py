@@ -4,7 +4,9 @@ import pandas as pd
 import numpy as np
 import torch
 import torchaudio.transforms as T
-
+import opensmile
+from sklearn.preprocessing import PowerTransformer
+from tqdm import tqdm
 
 
 def get_melspectro(path,config):
@@ -85,6 +87,35 @@ def get_mfcc(path,config):
 
         return MFCCs
 
+def get_smile(path,config):
+        sig = PhraseData.phrase_dict[ str(path)+'-phrase.wav'] 
+        #sig = preemphasis(sig)
+        smile = opensmile.Smile(
+            feature_set=opensmile.FeatureSet.ComParE_2016,
+            feature_level=opensmile.FeatureLevel.Functionals,
+            num_workers=8,
+            multiprocessing=True
+        )
+
+        handcrafted = smile.process_signal(
+                        sig,
+                        config["sr"]
+                    )        
+
+        return handcrafted
+
+
+def get_scaler(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,mfcc_run_config):
+    data_list = []
+    if mode == 'smile':
+        scaler = PowerTransformer()
+       
+        for x in tqdm(X_path_list):
+            data_list.append(get_smile(x,mfcc_run_config).to_numpy().squeeze())
+        data_list = np.array(data_list)
+        scaler.fit(data_list)
+    return scaler
+        
 
 
 def get_mean_std(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,mfcc_run_config):
@@ -110,9 +141,11 @@ def get_mean_std(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,
             data_list.append(get_mfcc(x,mfcc_run_config).numpy())
         data_list = np.array(data_list)
         spectro_mean = data_list.mean()
-        spectro_std = data_list.std()
+        spectro_std = data_list.std()     
+         
 
     return spectro_mean,spectro_std
+
 
 
 def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file_path_abs,args):

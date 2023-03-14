@@ -25,7 +25,7 @@ from Dataset.cv_spliter import cv_spliter #데이터 분할 모듈
 from Dataset.Data import make_data # phrase 데이터를 담아둔다.
 from Dataset.Dataset import load_data,load_test_data
 from Model.Models import model_initialize
-from Utils.Utils import get_mean_std,save_result
+from Utils.Utils import get_mean_std,get_scaler,save_result
 from Trainer.Trainer import test_evaluate, train, evaluate
 
 
@@ -166,17 +166,32 @@ def main():
     ## log_spectro, mel_spectro, mfcc 순으로 담긴다.
     norm_mean_list = []
     norm_std_list = []
+    scaler_list = []
     
-    if args.normalize:
+    if args.normalize and args.model == 'wav_res_smile':
         print("normalize 시작")
-        spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
-        mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
-        mfcc_mean,mfcc_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'mfcc',spectro_run_config,mel_run_config,mfcc_run_config)
+        #spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
+        #mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
+        #mfcc_mean,mfcc_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'mfcc',spectro_run_config,mel_run_config,mfcc_run_config)
+        smile_scaler = get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'smile',spectro_run_config,mel_run_config,mfcc_run_config)
+        scaler_list = [smile_scaler,]
 
-        norm_mean_list = [spectro_mean,mel_mean,mfcc_mean]
-        norm_std_list = [spectro_std,mel_std,mfcc_std]
-        print("mean : ",norm_mean_list)
-        print("std : ",norm_std_list)
+    # if args.normalize:
+    #     print("normalize 시작")
+    #     #spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
+    #     #mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
+    #     #mfcc_mean,mfcc_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'mfcc',spectro_run_config,mel_run_config,mfcc_run_config)
+        
+    #     smile_mean,smile_std = get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'smile',spectro_run_config,mel_run_config,mfcc_run_config)
+
+    #     norm_mean_list = [smile_mean,]
+    #     norm_std_list = [smile_std,]
+
+
+    #     # norm_mean_list = [spectro_mean,mel_mean,mfcc_mean]
+    #     # norm_std_list = [spectro_std,mel_std,mfcc_std]
+    #     print("mean : ",norm_mean_list)
+    #     print("std : ",norm_std_list)
     
 
     ##### 10. 학습 및 평가.
@@ -203,6 +218,7 @@ def main():
                                                     args.normalize,
                                                     norm_mean_list,
                                                     norm_std_list,
+                                                    scaler_list,
                                                     args.model,
                                                     args.dataset,
                                                     args.augment,
@@ -294,6 +310,7 @@ def main():
                                             args.normalize,
                                             norm_mean_list,
                                             norm_std_list,
+                                            scaler_list,
                                             args.model,
                                             args.dataset
                                         )
