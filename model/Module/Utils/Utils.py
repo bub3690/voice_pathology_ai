@@ -87,13 +87,13 @@ def get_mfcc(path,config):
 
         return MFCCs
 
-def get_smile(path,config):
+def get_smile(path,config,num_workers=0):
         sig = PhraseData.phrase_dict[ str(path)+'-phrase.wav'] 
         #sig = preemphasis(sig)
         smile = opensmile.Smile(
             feature_set=opensmile.FeatureSet.ComParE_2016,
             feature_level=opensmile.FeatureLevel.Functionals,
-            num_workers=8,
+            num_workers=num_workers,
             multiprocessing=True
         )
 
@@ -105,13 +105,13 @@ def get_smile(path,config):
         return handcrafted
 
 
-def get_scaler(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,mfcc_run_config):
+def get_scaler(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,mfcc_run_config,num_workers=0):
     data_list = []
     if mode == 'smile':
         scaler = PowerTransformer()
        
         for x in tqdm(X_path_list):
-            data_list.append(get_smile(x,mfcc_run_config).to_numpy().squeeze())
+            data_list.append(get_smile(x,mfcc_run_config,num_workers=num_workers).to_numpy().squeeze())
         data_list = np.array(data_list)
         scaler.fit(data_list)
     return scaler

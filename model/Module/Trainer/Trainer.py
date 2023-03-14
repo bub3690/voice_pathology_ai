@@ -4,6 +4,7 @@ import torch.nn as nn # 인공 신경망 모델들 모아놓은 모듈
 import torch.nn.functional as F #그중 자주 쓰이는것들을 F로
 import pandas as pd
 import torchvision.models as models
+from tqdm import tqdm
 
 
 
@@ -332,7 +333,7 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     elif model_name == 'wav_res_smile':
-        for batch_idx,(image,handcrafted,label,path_list,origin_length) in enumerate(train_loader):
+        for batch_idx,(image,handcrafted,label,path_list,origin_length) in tqdm(enumerate(train_loader)):
             image = image.to(DEVICE)
             handcrafted = handcrafted.to(DEVICE)
             label = label.to(DEVICE)

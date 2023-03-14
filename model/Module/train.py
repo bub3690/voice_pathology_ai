@@ -175,7 +175,7 @@ def main():
         #spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
         #mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
         #mfcc_mean,mfcc_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'mfcc',spectro_run_config,mel_run_config,mfcc_run_config)
-        smile_scaler = get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'smile',spectro_run_config,mel_run_config,mfcc_run_config)
+        smile_scaler = get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'smile',spectro_run_config,mel_run_config,mfcc_run_config,num_workers=args.workers)
         scaler_list = [smile_scaler,]
 
     # if args.normalize:
