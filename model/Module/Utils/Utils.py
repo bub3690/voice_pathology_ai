@@ -7,6 +7,7 @@ import torchaudio.transforms as T
 import opensmile
 from sklearn.preprocessing import PowerTransformer
 from tqdm import tqdm
+import os
 
 
 def get_melspectro(path,config):
@@ -170,7 +171,8 @@ def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file
     merge_left['filename']=merge_left['filename'].values.astype(int)
     merge_left = merge_left[['filename','fold','AGE','DETAIL','prediction','answer','prob','result']]
     excel_name = '../../../voice_data/results/'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_organics_speaker.xlsx'
+    excel_name = os.path.abspath(excel_name) 
     print(excel_name)
-    excel_name = './'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_organics_speaker.xlsx'
+    #excel_name = './'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_organics_speaker.xlsx'
     merge_left.to_excel(excel_name,index=False)
 

@@ -351,8 +351,10 @@ def main():
         args.normalize,
         norm_mean_list,
         norm_std_list,
+        scaler_list,
         args.model,
-        args.dataset)
+        args.dataset,
+        num_workers=args.workers)
 
 
     cf = np.zeros((2,2))
