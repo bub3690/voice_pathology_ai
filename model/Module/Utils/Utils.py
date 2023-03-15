@@ -109,8 +109,8 @@ def get_smile(path,config,num_workers=0):
 def get_scaler(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,mfcc_run_config,num_workers=0):
     data_list = []
     if mode == 'smile':
-        #scaler = PowerTransformer()
-        scaler = QuantileTransformer(output_distribution='normal')
+        scaler = PowerTransformer(method='box-cox')
+        #scaler = QuantileTransformer(output_distribution='normal')
 
         for x in tqdm(X_path_list):
             data_list.append(get_smile(x,mfcc_run_config,num_workers=num_workers).to_numpy().squeeze())
