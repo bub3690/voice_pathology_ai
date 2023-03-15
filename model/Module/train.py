@@ -204,7 +204,7 @@ def main():
     valid_accs = []
 
 
-    for data_ind in range(1,2):
+    for data_ind in range(1,6):
 
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         print(check_path)
@@ -282,7 +282,7 @@ def main():
 
     # # Model 결과 확인
     sum_valid=0
-    for data_ind in range(1):
+    for data_ind in range(5):
         print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
         sum_valid+=valid_accs[data_ind]
         
@@ -299,7 +299,7 @@ def main():
 
     if args.save_result:
         print("save valid result")
-        for data_ind in range(1,2):
+        for data_ind in range(1,6):
             model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
             check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
             model.load_state_dict(torch.load(check_path))            
@@ -363,7 +363,7 @@ def main():
     average_fscore = 0
     average_uar = 0
 
-    for data_ind in range(1,2):
+    for data_ind in range(1,6):
         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         model.load_state_dict(torch.load(check_path))

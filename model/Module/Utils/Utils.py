@@ -151,7 +151,7 @@ def get_mean_std(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,
 
 def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file_path_abs,args):
     fold_excel = []
-    for i in range(1):
+    for i in range(5):
         fold_excel.append(pd.DataFrame({'filename':all_filename[i],
                     'prediction':[data.cpu().numpy().item() for data in all_prediction[i]],
                     'answer':[ data.cpu().numpy().item() for data in all_answers[i]],
