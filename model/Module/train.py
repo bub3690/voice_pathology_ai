@@ -282,7 +282,7 @@ def main():
 
     # # Model 결과 확인
     sum_valid=0
-    for data_ind in range(5):
+    for data_ind in range(1):
         print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
         sum_valid+=valid_accs[data_ind]
         
