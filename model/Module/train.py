@@ -204,7 +204,7 @@ def main():
     valid_accs = []
 
 
-    for data_ind in range(1,6):
+    for data_ind in range(1,2):
 
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
         print(check_path)

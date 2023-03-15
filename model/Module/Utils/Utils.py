@@ -1,5 +1,5 @@
 import librosa
-from Dataset.Data import PhraseData
+#from Dataset.Data import PhraseData
 import pandas as pd
 import numpy as np
 import torch
@@ -151,7 +151,7 @@ def get_mean_std(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,
 
 def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file_path_abs,args):
     fold_excel = []
-    for i in range(5):
+    for i in range(1):
         fold_excel.append(pd.DataFrame({'filename':all_filename[i],
                     'prediction':[data.cpu().numpy().item() for data in all_prediction[i]],
                     'answer':[ data.cpu().numpy().item() for data in all_answers[i]],
@@ -171,8 +171,13 @@ def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file
     merge_left['filename']=merge_left['filename'].values.astype(int)
     merge_left = merge_left[['filename','fold','AGE','DETAIL','prediction','answer','prob','result']]
     excel_name = '../../../voice_data/results/'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_organics_speaker.xlsx'
-    excel_name = os.path.abspath(excel_name) 
+    excel_name = os.path.abspath(excel_name)
+    print(os.getcwd())
     print(excel_name)
     #excel_name = './'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_organics_speaker.xlsx'
     merge_left.to_excel(excel_name,index=False)
 
+
+
+if __name__ =='__main__':
+    print(os.getcwd())
