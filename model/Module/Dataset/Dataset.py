@@ -653,10 +653,12 @@ class svd_dataset_wav_smile(Dataset):
 
         ### handcrafted feature (smile)
         # padding 전에 계산.
+        
         handcrafted = self.smile.process_signal(
                         sig,
                         self.mel_params["sr"]
                     )
+        handcrafted = handcrafted
         #####
 
         #handcrafted normalize
@@ -2184,21 +2186,15 @@ def load_data(
                                                 #worker_init_fn=seed_worker
                                                 )
     else:
-        train_loader = DataLoader(dataset = svd_dataset(
+        # 기타 이미지 모델들은 모두 이것을 사용.
+        train_loader = DataLoader(dataset = svd_dataset_wav(
                                                     X_train_list,
                                                     Y_train_list,
                                                     classes,
-                                                    mfcc_params=mfcc_run_config,
-                                                    mel_params=mel_run_config,
-                                                    spectro_params=spectro_run_config,
+                                                    mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
-                                                    is_normalize=is_normalize,
-                                                    norm_mean_list=norm_mean_list,
-                                                    norm_std_list=norm_std_list,
-                                                    is_train=True,
-                                                    augmentation=augment
-                                                    #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
-                                                    #mfcc_normalize=(53.5582, 217.43),
+                                                    is_train = True,
+                                                    dataset= dataset
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
@@ -2206,24 +2202,18 @@ def load_data(
                                                 ) # 순서가 암기되는것을 막기위해.
 
         validation_loader = DataLoader(dataset = 
-                                                svd_dataset(
+                                                svd_dataset_wav(
                                                     X_valid_list,
                                                     Y_valid_list,
                                                     classes,
-                                                    mfcc_params=mfcc_run_config,
-                                                    mel_params=mel_run_config,
-                                                    spectro_params=spectro_run_config,
+                                                    mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
-                                                    is_normalize=is_normalize,
-                                                    norm_mean_list=norm_mean_list,
-                                                    norm_std_list=norm_std_list,
-                                                    #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
-                                                    #mfcc_normalize=(53.5582, 217.43),
+                                                    dataset= dataset
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
-                                                )
+                                                )#svd_dataset_wav_smile
     return train_loader,validation_loader
 
 
@@ -2470,24 +2460,19 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
     else:
-        test_loader = DataLoader(dataset = svd_dataset(
-                                            X_test,
-                                            Y_test,
-                                            classes,
-                                            mfcc_params=mfcc_run_config,
-                                            mel_params=mel_run_config,
-                                            spectro_params=spectro_run_config,
-                                            transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
-                                            is_normalize=is_normalize,
-                                            norm_mean_list=norm_mean_list,
-                                            norm_std_list=norm_std_list,
-                                            #normalize=transforms.Normalize((-11.4805,-54.7723,-54.7723),(16.87,19.0226,19.0226)),
-                                            #mfcc_normalize=(53.5582, 217.43),
-                                        ),
-                                        batch_size = BATCH_SIZE,
-                                        shuffle = True,
-                                        #worker_init_fn=seed_worker
-                                        ) # 순서가 암기되는것을 막기위해.        
+        #기타 이미지 모델들 전부.
+        test_loader = DataLoader(dataset = svd_dataset_wav(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.   
     
     
     return test_loader

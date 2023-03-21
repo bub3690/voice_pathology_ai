@@ -5,9 +5,15 @@ import numpy as np
 import torch
 import torchaudio.transforms as T
 import opensmile
-from sklearn.preprocessing import PowerTransformer,QuantileTransformer
+from sklearn.preprocessing import PowerTransformer,QuantileTransformer,StandardScaler,MinMaxScaler
+from sklearn.pipeline import make_pipeline
 from tqdm import tqdm
 import os
+
+
+
+
+
 
 
 def get_melspectro(path,config):
@@ -111,6 +117,10 @@ def get_scaler(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,mf
     if mode == 'smile':
         #scaler = PowerTransformer(method='yeo-johnson',standardize=True)
         scaler = QuantileTransformer(output_distribution='uniform')
+        # scaler = make_pipeline(
+        #     MinMaxScaler(),
+        #     PowerTransformer(standardize=True),
+        # )
 
         for x in tqdm(X_path_list):
             data_list.append(get_smile(x,mfcc_run_config,num_workers=num_workers).to_numpy().squeeze())
@@ -171,7 +181,14 @@ def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file
     merge_left['result']=merge_left['prediction']==merge_left['answer']
     merge_left['filename']=merge_left['filename'].values.astype(int)
     merge_left = merge_left[['filename','fold','AGE','DETAIL','prediction','answer','prob','result']]
-    excel_name = '../../voice_data/results/'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_organics_speaker.xlsx'
+
+    data_subset = 'organics'
+    if args.data_subset==0:
+        data_subset = 'alldata'
+    elif args.data_subset==1:
+        data_subset = 'organics'
+
+    excel_name = '../../voice_data/results/'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_dataprobs_'+str(args.data_probs)+'_'+data_subset+'_speaker.xlsx'
     excel_name = os.path.abspath(excel_name)
     print(os.getcwd())
     print(excel_name)

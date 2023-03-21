@@ -74,7 +74,10 @@ def main():
     parser.add_argument('--model',type=str, default='baseline',
                         help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,\
                             wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel,\
-                                wav_res_phrase_eggfusion_lstm,wav_res_phrase_eggfusion_mmtm, wav_res_smile ]')
+                                wav_res_phrase_eggfusion_lstm,wav_res_phrase_eggfusion_mmtm, wav_res_smile,\
+                                efficient_b0]')
+    parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
+    parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
     parser.add_argument('--dataset',type=str, default='phrase',
                         help='list : [phrase, a_h, a_n, a_l, a_fusion ... ]')
     parser.add_argument('--name',type=str, default='res18',
@@ -119,10 +122,15 @@ def main():
     
 
     
-    speaker_file_path = "../../voice_data/only_organics_healthy_available_ver2.xlsx" # 퓨전셋에 맞게 01.10 수정
+    if args.data_subset==0:
+        speaker_file_path = "../../voice_data/all_data.xlsx" # 퓨전셋에 맞게 01.10 수정    
+    elif args.data_subset==1:
+        speaker_file_path = "../../voice_data/only_organics_healthy_available_ver2.xlsx" # 퓨전셋에 맞게 01.10 수정
+    
+    
     speaker_file_path_abs = os.path.abspath(speaker_file_path)
 
-    X_train_list, X_valid_list, X_test, Y_train_list, Y_valid_list, Y_test = cv_spliter(random_state,speaker_file_path_abs)
+    X_train_list, X_valid_list, X_test, Y_train_list, Y_valid_list, Y_test = cv_spliter(random_state, speaker_file_path_abs, data_probs=args.data_probs)
         
 
 
@@ -203,10 +211,15 @@ def main():
     train_accs = []
     valid_accs = []
 
+    data_subset = 'organics'
+    if args.data_subset==0:
+        data_subset = 'alldata'
+    elif args.data_subset==1:
+        data_subset = 'organics'
 
     for data_ind in range(1,6):
 
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
         print(check_path)
         early_stopping = EarlyStopping(patience = args.es, verbose = True, path=check_path)
         train_loader,validation_loader = load_data( X_train_list[data_ind-1],
@@ -301,7 +314,7 @@ def main():
         print("save valid result")
         for data_ind in range(1,6):
             model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
             model.load_state_dict(torch.load(check_path))            
             test_loader = load_test_data(
                                             X_valid_list[data_ind-1],
@@ -362,10 +375,12 @@ def main():
     average_accuracy = 0
     average_fscore = 0
     average_uar = 0
+    average_sensitivity = 0
+    average_specificity = 0    
 
     for data_ind in range(1,6):
         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_organics_speaker.pt'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
         model.load_state_dict(torch.load(check_path))
 
         predictions,answers,test_loss = test_evaluate(model,args.model,test_loader, DEVICE, criterion)
@@ -382,6 +397,9 @@ def main():
         recall=cf[1,1]/(cf[1,1]+cf[1,0])
         specificity=cf[0,0]/(cf[0,0]+cf[0,1])
 
+        average_sensitivity += recall
+        average_specificity += specificity
+
         average_uar += (specificity+recall)/2
         #fscore=2*precision*recall/(precision+recall)
         
@@ -393,8 +411,8 @@ def main():
         print("Accuracy : {:.4f}% ".format(acc*100))
         #print("Precision (pathology 예측한 것중 맞는 것) : {:.4f}".format(precision))
         print("recall (실제 pathology 중  예측이 맞는 것) : {:.4f}".format(recall))
-        print("specificity : {:.4f}%".format(specificity))
-        print("UAR : {:.4f}%".format( (specificity+recall)/2 ))
+        print("specificity : {:.4f}".format(specificity))
+        print("UAR : {:.4f}".format( (specificity+recall)/2 ))
         
         
         print("f score : {:.4f} ".format(fscore))
@@ -404,10 +422,15 @@ def main():
     print("평균 acc : {:.4f}".format(average_accuracy/5))
     print("평균 UAR : {:.4f}".format(average_uar/5))
     print("평균 f1score : {:.4f}".format(average_fscore/5))
+    print("평균 specificity : {:.4f}".format(average_specificity/5))
+    print("평균 sensitivity : {:.4f}".format(average_sensitivity/5))    
     if args.wandb:
-        wandb.run.summary.update({"test 평균 acc" : average_accuracy/5})
-        wandb.run.summary.update({"test 평균 f1" : average_fscore/5})
-        wandb.run.summary.update({"test 평균 UAR" : average_uar/5})
+        wandb.run.summary.update({"test 평균 acc" : average_accuracy/5,
+                                  "test 평균 f1" : average_fscore/5,
+                                  "test 평균 UAR" : average_uar/5,
+                                  "test 평균 specificity": average_specificity/5,
+                                  "test 평균 sensitivity": average_sensitivity/5,
+                                  })
     return
 
 

@@ -284,7 +284,7 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 predictions +=prediction
     else:
         with torch.no_grad():
-            for image,label in test_loader:
+            for image,label,path_list,origin_length in test_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
                 output = model(image)
@@ -292,7 +292,11 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 answers +=label
                 predictions +=prediction
-    
+
+                #save result
+                softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
+                output_list+= softmax_outputs
+                file_list += path_list
     if save_result:
         print("save result")
         return predictions,answers,test_loss,output_list,file_list
@@ -561,7 +565,7 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     else:
-        for batch_idx,(image,label) in enumerate(train_loader):
+        for batch_idx,(image,label,path_list,origin_length) in enumerate(train_loader):
             image = image.to(DEVICE)
             label = label.to(DEVICE)
             #데이터들 장비에 할당
@@ -572,7 +576,7 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
             correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
             loss.backward() # loss 값을 이용해 gradient를 계산
-            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.        
+            optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
     train_loss/=len(train_loader.dataset)
     
 
@@ -793,14 +797,18 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 #true.false값을 sum해줌. item
     else:
         with torch.no_grad():
-            for image,label in valid_loader:
+            for image,label,path_list,origin_length in valid_loader:
                 image = image.to(DEVICE)
                 label = label.to(DEVICE)
                 output = model(image)
+                #print(F.softmax(output))
+                #print(output.size())
                 valid_loss += criterion(output, label).item()
                 prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
                 correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
-                #true.false값을 sum해줌. item        
+                #print(prediction.eq(label.view_as(prediction)))
+                #print(path_list)
+                #true.false값을 sum해줌. item 
     valid_loss /= len(valid_loader.dataset)
     valid_accuracy = 100. * correct / len(valid_loader.dataset)
     return valid_loss,valid_accuracy

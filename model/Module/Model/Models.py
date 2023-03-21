@@ -16,6 +16,8 @@ from dropblock import DropBlock2D, LinearScheduler
 import torchvision.models as models
 from torchvision.models.resnet import ResNet, BasicBlock
 
+from .Ablations import se_resnet18,xception,\
+    efficinet_bo
 
 
 
@@ -41,17 +43,7 @@ class ResLayer(nn.Module):
                             nn.Dropout(p=0.5),
                             nn.Linear(50,2)
                             )
-        # self.fc = nn.Sequential(       
-        #     nn.Linear(self.num_ftrs, 64),
-        #                     nn.BatchNorm1d(64),
-        #                     nn.ReLU(),
-        #                     nn.Dropout(p=0.5),
-        #                     nn.Linear(64,50),
-        #                     nn.BatchNorm1d(50),
-        #                     nn.ReLU(),
-        #                     nn.Dropout(p=0.5),
-        #                     nn.Linear(50,2)
-        #                     )
+
     def forward(self, x):
         #print(x.size())
         x = self.model(x)
@@ -1819,59 +1811,9 @@ class MSF(nn.Module):
 
 
 
-###
-#seresnet
-
-def se_resnet18(num_classes=2):
-    """Constructs a ResNet-18 model.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    # fc layer 추가해서 고쳐보기
-    model = timm.create_model('legacy_seresnet18',num_classes=1000,pretrained=True)
-    print(model)
-    num_ftrs=model.last_linear.out_features
-    
-    model.fc = nn.Sequential(       
-        nn.Linear(num_ftrs, 64),
-                            nn.BatchNorm1d(64),
-                            nn.ReLU(),
-                            nn.Dropout(p=0.5),
-                            nn.Linear(64,50),
-                            nn.BatchNorm1d(50),
-                            nn.ReLU(),
-                            nn.Dropout(p=0.5),
-                            nn.Linear(50,2)
-                        )
-
-    return model
 
 
 
-#####
-
-def xception(num_classes=2):
-    """Constructs a ResNet-18 model.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    # fc layer 추가해서 고쳐보기
-    model = timm.create_model('xception',num_classes=1000,pretrained=True)
-    #print(model)
-    num_ftrs=model.fc.in_features
-    model.fc = nn.Sequential(       
-        nn.Linear(num_ftrs, 64),
-                            nn.BatchNorm1d(64),
-                            nn.ReLU(),
-                            nn.Dropout(p=0.5),
-                            nn.Linear(64,50),
-                            nn.BatchNorm1d(50),
-                            nn.ReLU(),
-                            nn.Dropout(p=0.5),
-                            nn.Linear(50,2)
-                        )
-
-    return model
 
 
 
@@ -1924,7 +1866,13 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = ResLayer().cuda()
     elif model_name == 'decomp':
         model = ResLayer().cuda()
-    elif model_name == 'se_resnet18':
-        model = xception().cuda()
+    
+        #############
+        #아래부터는 ablation study
+        ############
+    if model_name == 'se_resnet18':
+        model = se_resnet18(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'efficient_b0':
+        model = efficinet_bo(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
 
     return model

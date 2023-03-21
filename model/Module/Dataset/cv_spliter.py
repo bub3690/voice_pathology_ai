@@ -9,7 +9,7 @@ from collections import Counter
 from sklearn.model_selection import train_test_split # train , test 분리에 사용.
 import numpy as np
 
-def cv_spliter(random_state,file_path):
+def cv_spliter(random_state,file_path,data_probs=0):
     """
     5 CV data spliter
     Speark independence
@@ -58,8 +58,28 @@ def cv_spliter(random_state,file_path):
         else:
             Y.append("healthy")
 
-    X, X_test, Y, Y_test = train_test_split(X, Y, test_size=0.2, shuffle=True, stratify=Y, random_state=random_state) #456
+    X, X_test, Y, Y_test = train_test_split(X, Y, test_size=0.2, shuffle=True, stratify=Y, random_state=random_state)
     #stratify를 넣어서, test에도 라벨별 잘 분류되게 한다.
+
+    if data_probs ==0:
+        pass
+    elif data_probs == 1:
+        # 20%
+        X=X[:int(len(X)*0.2)]
+        Y=Y[:int(len(Y)*0.2)]
+    elif data_probs == 2:
+        # 40%
+        X=X[:int(len(X)*0.4)]
+        Y=Y[:int(len(Y)*0.4)]
+    elif data_probs == 3:
+        # 60%
+        X=X[:int(len(X)*0.6)]
+        Y=Y[:int(len(Y)*0.6)]
+    elif data_probs == 4:
+        # 80%
+        X=X[:int(len(X)*0.8)]
+        Y=Y[:int(len(Y)*0.8)]
+
 
     print("---")
     print("훈련 셋 : ",len(Y),Counter(Y))
