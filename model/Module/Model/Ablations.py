@@ -165,7 +165,7 @@ def xception(num_classes=2):
 
 
 ###
-def efficinet_bo(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+def efficient_b0(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -190,7 +190,7 @@ def efficinet_bo(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
 
     return base_model
 
-def efficinet_b1(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+def efficient_b1(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -215,7 +215,7 @@ def efficinet_b1(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
 
     return base_model
 
-def efficinet_b2(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+def efficient_b2(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -241,7 +241,7 @@ def efficinet_b2(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
     return base_model
 
 
-def efficinet_b3(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+def efficient_b3(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet

@@ -17,7 +17,7 @@ import torchvision.models as models
 from torchvision.models.resnet import ResNet, BasicBlock
 
 from .Ablations import se_resnet18,xception,\
-    efficinet_bo
+    efficient_b0,efficient_b1,efficient_b2,efficient_b3
 
 
 
@@ -1873,6 +1873,12 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
     if model_name == 'se_resnet18':
         model = se_resnet18(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'efficient_b0':
-        model = efficinet_bo(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = efficient_b0(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'efficient_b1':
+        model = efficient_b1(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'efficient_b2':
+        model = efficient_b1(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'efficient_b3':
+        model = efficient_b1(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
 
     return model
