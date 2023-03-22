@@ -17,7 +17,8 @@ import torchvision.models as models
 from torchvision.models.resnet import ResNet, BasicBlock
 
 from .Ablations import se_resnet18,xception,\
-    efficient_b0,efficient_b1,efficient_b2,efficient_b3
+    efficient_b0,efficient_b1,efficient_b2,efficient_b3,\
+    resnet34,resnet50,resnet101
 
 
 
@@ -1877,8 +1878,15 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
     elif model_name == 'efficient_b1':
         model = efficient_b1(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'efficient_b2':
-        model = efficient_b1(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = efficient_b2(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'efficient_b3':
-        model = efficient_b1(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = efficient_b3(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'resnet34':
+        model = resnet34(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'resnet50':
+        model = resnet50(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'resnet101':
+        model = resnet101(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+
 
     return model

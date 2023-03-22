@@ -1,0 +1,2 @@
+python train.py --wandb True --batch-size 16 --model efficient_b1 --dataset phrase --tag efficient_b1 wav phrase set100 --seed 1005 --data-probs 0 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model efficient_b1 --dataset phrase --tag efficient_b1 wav phrase set80 --seed 1006 --data-probs 4 --save-result True --descript "wav phrase resnet18 speaker independent"
