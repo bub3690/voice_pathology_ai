@@ -101,6 +101,7 @@ def main():
 
     if args.wandb:
         project_name = args.project_name
+        wandb.login(key='9b0830eae021991e53eaabb9bb697d9efef8fd58')
         wandb.init(project=project_name, entity="bub3690",tags=args.tag,settings=wandb.Settings(_disable_stats=True))
         wandb_run_name = args.model+'_'+args.name+'_norm_'+str(args.normalize).lower()+'_seed_'+str(args.seed)
         wandb.run.name = wandb_run_name
