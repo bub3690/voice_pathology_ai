@@ -223,7 +223,7 @@ def efficient_b2(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
     # fc layer 추가해서 고쳐보기
     num_ftrs = 1000
     model = models.efficientnet_b2(pretrained=True,num_classes=num_ftrs)
-    print(model)
+    #print(model)
     classifier = nn.Sequential(       
         nn.Linear(num_ftrs, 64),
                             nn.BatchNorm1d(64),
@@ -273,7 +273,7 @@ def resnet34(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     # fc layer 추가해서 고쳐보기
-    model = models.resnet18(pretrained=True)
+    model = models.resnet34(pretrained=True)
     num_ftrs = model.fc.in_features
 
     model.fc = nn.Sequential(       
