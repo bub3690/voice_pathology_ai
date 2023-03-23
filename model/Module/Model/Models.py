@@ -1168,7 +1168,238 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         egg = self.egg_model.layer4(egg) # 512, 4, 10
 
         #### FOURTH MMTM ####
-        wav, egg = self.mmtm4(wav, egg)        
+        wav, egg = self.mmtm4(wav, egg)
+
+        wav = self.wav_model.avgpool(wav)
+        egg = self.egg_model.avgpool(egg)
+        #print(x.size())
+        
+        wav = torch.flatten(wav, 1)
+        wav = self.wav_model.fc(wav)# 512
+
+        egg = torch.flatten(egg, 1)
+        egg = self.egg_model.fc(egg)# 512        
+
+        x = torch.concat([wav,egg]  ,axis=1)
+
+        x = torch.cat([wav,egg],axis=1)
+        x = self.fc(x)
+        return x
+
+
+
+class BAM(nn.Module):
+  def __init__(self,):
+    super(BAM, self).__init__()
+    
+    self.wav_conv_squeeze = nn.Conv2d(4, 1, kernel_size=7, stride=1, padding=3,bias=False) # 4 : wav_max,wav_mean, egg_max,egg_mean
+    
+    self.egg_conv_squeeze = nn.Conv2d(4, 1, kernel_size=7, stride=1, padding=3,bias=False) # 4 : wav_max,wav_mean, egg_max,egg_mean
+    self.relu = nn.ReLU()
+    self.sigmoid = nn.Sigmoid()
+
+    # initialize
+    # with torch.no_grad():
+    #   self.fc_squeeze.apply(init_weights)
+    #   self.fc_visual.apply(init_weights)
+    #   self.fc_skeleton.apply(init_weights)
+
+  def forward(self, visual, skeleton):
+    squeeze_array = []
+    for tensor in [visual, skeleton]:
+        max_tensor = tensor.max(axis=1)[0]
+        mean_tensor = tensor.mean(axis=1)
+        #squeeze_array.append(mean_tensor)
+        squeeze_array += [max_tensor,mean_tensor]
+        #그냥 mean만 남기기?
+    squeeze = torch.stack(squeeze_array, dim=1)
+
+    excitation_wav = self.wav_conv_squeeze(squeeze)
+    excitation_wav = self.sigmoid(excitation_wav) # attention이기에, sigmoid
+
+    excitation_egg = self.egg_conv_squeeze(squeeze)
+    excitation_egg = self.sigmoid(excitation_egg)
+
+    return visual * excitation_wav, skeleton * excitation_egg
+
+
+class non_local(nn.Module):
+    def __init__(self, dim_visual, dim_skeleton):
+        super(non_local, self).__init__()
+
+        self.wav_query_conv = nn.Conv2d(dim_visual,dim_visual//2 , kernel_size=1,bias=False)
+
+        self.wav_key_conv = nn.Conv2d(dim_visual,dim_visual//2 , kernel_size=1,bias=False)
+
+        self.wav_value_conv = nn.Conv2d(dim_visual,dim_visual//2 , kernel_size=1,bias=False)
+
+
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+
+        # initialize
+        # with torch.no_grad():
+        #   self.fc_squeeze.apply(init_weights)
+        #   self.fc_visual.apply(init_weights)
+        #   self.fc_skeleton.apply(init_weights)
+
+    def forward(self, visual, skeleton):
+        #concat 연산때문에 결론부분이 안나눠짐. 고쳐야함. output이 두개가 된다.
+        # 채널단에서 concat이 되게 고칠것.
+        
+        wav = visual.view(-1,visual.shape[1],visual.shape[2]*visual.shape[3])
+        egg = skeleton.view(-1,skeleton.shape[1],skeleton.shape[2]*skeleton.shape[3])
+
+        concated_egg_wav = torch.cat([wav,egg])
+
+        query = self.wav_query_conv(concated_egg_wav) 
+
+        key = self.wav_key_conv(concated_egg_wav)
+
+        representation = torch.matmul(query.permute(0,2,1),key) #hw x hw
+        representation = torch.softmax(representation) # attention
+        
+        excitation_wav = self.wav_conv_squeeze(squeeze)
+        excitation_wav = self.sigmoid(excitation_wav) # attention이기에, sigmoid
+
+        excitation_egg = self.egg_conv_squeeze(squeeze)
+        excitation_egg = self.sigmoid(excitation_egg)
+
+        return visual * excitation_wav, skeleton * excitation_egg
+    
+
+
+class ResLayer_wav_fusion_mmtm_bam(nn.Module):
+    def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(ResLayer_wav_fusion_mmtm_bam, self).__init__()
+        self.wav_model = models.resnet18(pretrained=True).cuda() 
+        self.egg_model = models.resnet18(pretrained=True).cuda()
+
+        self.mmtm1 = MMTM(64,64,4)
+        self.mmtm2 = MMTM(128,128,4)      
+        self.mmtm3 = MMTM(256,256,4)     
+        self.mmtm4 = MMTM(512,512,4)
+
+        self.bam1 = BAM()
+        self.bam2 = BAM()
+        self.bam3 = BAM()
+        self.bam4 = BAM()
+
+        # self.wav_model = MyResNet18()
+        # # if you need pretrained weights
+        # self.wav_model.load_state_dict(models.resnet18(pretrained=True).state_dict())
+        # self.egg_model = MyResNet18()
+        # # if you need pretrained weights
+        # self.egg_model.load_state_dict(models.resnet18(pretrained=True).state_dict())
+
+        self.num_ftrs = self.wav_model.fc.out_features
+                            
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+                
+        #self.fc = nn.Linear(2, 2),
+        self.fc = nn.Sequential(       
+                            nn.Linear(self.num_ftrs*2, self.num_ftrs),
+                            nn.BatchNorm1d(self.num_ftrs),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(self.num_ftrs,128),
+                            nn.BatchNorm1d(128),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(128,64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,2),
+                            )
+
+    #@classmethod   
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+
+    def forward(self, x_list, augment=False):
+        wav = self.mel_scale(x_list[:,0,...])
+        wav = wav.squeeze(1)
+        wav = torchaudio.functional.amplitude_to_DB(wav,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(wav)) ) 
+        wav = ResLayer_wav_fusion_lstm.batch_min_max(wav)        
+
+        egg = self.mel_scale(x_list[:,1,...])
+        egg = egg.squeeze(1)
+        egg = torchaudio.functional.amplitude_to_DB(egg,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(egg)) )
+        egg = ResLayer_wav_fusion_lstm.batch_min_max(egg)
+                
+
+        wav = torch.stack([wav,wav,wav],axis=1)
+        egg = torch.stack([egg,egg,egg],axis=1)
+
+
+        ##### INPUT LAYER #####
+
+        wav = self.wav_model.conv1(wav) # 64, 64, 151
+        #print('conv1 : ',x.size())
+        wav = self.wav_model.bn1(wav)
+        wav = self.wav_model.relu(wav)
+        wav = self.wav_model.maxpool(wav)
+        #print('maxpool : ',x.size()) # 64, 32, 76
+
+        egg = self.egg_model.conv1(egg) # 64, 64, 151
+        #print('conv1 : ',x.size())
+        egg = self.egg_model.bn1(egg)
+        egg = self.egg_model.relu(egg)
+        egg = self.egg_model.maxpool(egg)
+        #print('maxpool : ',x.size()) # 64, 32, 76
+
+
+        ##### FIRST RESIDUAL #####
+        wav = self.wav_model.layer1(wav) # 64, 32, 76
+        egg = self.egg_model.layer1(egg) # 64, 32, 76
+
+        #### FIRST MMTM ####
+        wav, egg = self.mmtm1(wav, egg)
+
+        wav, egg = self.bam1(wav,egg)
+
+        ##### SECOND RESIDUAL #####
+        wav = self.wav_model.layer2(wav) # 128, 16, 38
+        egg = self.egg_model.layer2(egg) # 128, 16, 38
+
+        #### SECOND MMTM ####
+        wav, egg = self.mmtm2(wav, egg)
+
+        wav, egg = self.bam2(wav,egg)
+
+        ##### THIRD RESIDUAL #####
+        wav = self.wav_model.layer3(wav) # 256, 8, 19
+        egg = self.egg_model.layer3(egg) # 256, 8, 19
+
+        #### THIRD MMTM ####
+        wav, egg = self.mmtm3(wav, egg)
+
+        wav, egg = self.bam3(wav,egg)
+
+        ##### FOURTH RESIDUAL #####
+        wav = self.wav_model.layer4(wav) # 512, 4, 10
+        egg = self.egg_model.layer4(egg) # 512, 4, 10
+
+        #### FOURTH MMTM ####
+        wav, egg = self.mmtm4(wav, egg)
+
+        wav, egg = self.bam4(wav,egg)
 
         wav = self.wav_model.avgpool(wav)
         egg = self.egg_model.avgpool(egg)
@@ -1842,6 +2073,11 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
                                          hop_len=mel_run_config['hop_length']).cuda()
     elif model_name=='wav_res_phrase_eggfusion_mmtm':
         model = ResLayer_wav_fusion_mmtm(mel_bins=mel_run_config['n_mels'],
+                                         win_len=mel_run_config['win_length'],
+                                         n_fft=mel_run_config["n_fft"],
+                                         hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_res_phrase_eggfusion_mmtm_bam':
+        model = ResLayer_wav_fusion_mmtm_bam(mel_bins=mel_run_config['n_mels'],
                                          win_len=mel_run_config['win_length'],
                                          n_fft=mel_run_config["n_fft"],
                                          hop_len=mel_run_config['hop_length']).cuda()

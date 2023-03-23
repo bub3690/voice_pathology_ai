@@ -75,7 +75,7 @@ def main():
                         help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,\
                             wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel,\
                                 wav_res_phrase_eggfusion_lstm,wav_res_phrase_eggfusion_mmtm, wav_res_smile,\
-                                efficient_b0]')
+                                wav_res_phrase_eggfusion_mmtm_bam]')
     parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
     parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
     parser.add_argument('--dataset',type=str, default='phrase',
@@ -124,7 +124,7 @@ def main():
 
     
     if args.data_subset==0:
-        speaker_file_path = "../../voice_data/all_data.xlsx" # 퓨전셋에 맞게 01.10 수정    
+        speaker_file_path = "../../voice_data/all_data.xlsx" # all data. 나중에 확인해서 egg 없는것은 제외할 예정.
     elif args.data_subset==1:
         speaker_file_path = "../../voice_data/only_organics_healthy_available_ver2.xlsx" # 퓨전셋에 맞게 01.10 수정
     

@@ -1,0 +1,5 @@
+python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mmtm_bam --dataset phrase_egg_fusion --tag cbam wav phrase --seed 1004 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mmtm_bam --dataset phrase_egg_fusion --tag cbam wav phrase --seed 1005 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mmtm_bam --dataset phrase_egg_fusion --tag cbam wav phrase --seed 1006 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mmtm_bam --dataset phrase_egg_fusion --tag cbam wav phrase --seed 1007 --save-result True --descript "wav phrase resnet18 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mmtm_bam --dataset phrase_egg_fusion --tag cbam wav phrase --seed 1008 --save-result True --descript "wav phrase resnet18 speaker independent"

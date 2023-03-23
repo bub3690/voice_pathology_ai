@@ -430,7 +430,7 @@ def densenet_121(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     model = timm.create_model('densenet121',num_classes=1000,pretrained=True)
-    print(model)
+    #print(model)
     num_ftrs=model.classifier.in_features
     
     model.fc = nn.Sequential(       

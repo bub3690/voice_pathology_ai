@@ -1822,6 +1822,34 @@ def load_data(
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 )
+    elif model=='wav_res_phrase_eggfusion_mmtm_bam':
+        train_loader = DataLoader(dataset = svd_dataset_wav_eggfusion(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav_eggfusion(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )        
     elif model=='wav_res_time_attention':
         train_loader = DataLoader(dataset = svd_dataset_wav(
                                                     X_train_list,
@@ -2291,6 +2319,19 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.svd_dataset_wav_nopad
+    elif model=='wav_res_phrase_eggfusion_mmtm_bam':
+        test_loader = DataLoader(dataset = svd_dataset_wav_eggfusion(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.svd_dataset_wav_nopad        
     elif model=='wav_res_time_attention':
         test_loader = DataLoader(dataset = svd_dataset_wav(
                                                     X_test,
