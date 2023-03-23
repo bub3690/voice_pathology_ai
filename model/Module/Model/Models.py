@@ -16,9 +16,13 @@ from dropblock import DropBlock2D, LinearScheduler
 import torchvision.models as models
 from torchvision.models.resnet import ResNet, BasicBlock
 
-from .Ablations import se_resnet18,xception,\
+from .Ablations import xception,\
     efficient_b0,efficient_b1,efficient_b2,efficient_b3,\
-    resnet34,resnet50,resnet101
+    resnet34,resnet50,resnet101,\
+    se_resnet18,se_resnet34,se_resnet50,se_resnet101,\
+    mixerb16,mixnet_l,\
+    densenet_121,\
+    alexnet
 
 
 
@@ -1873,6 +1877,12 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         ############
     if model_name == 'se_resnet18':
         model = se_resnet18(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'se_resnet34':
+        model = se_resnet34(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'se_resnet50':
+        model = se_resnet50(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'se_resnet101':
+        model = se_resnet101(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'efficient_b0':
         model = efficient_b0(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'efficient_b1':
@@ -1887,6 +1897,14 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = resnet50(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'resnet101':
         model = resnet101(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'densenet_121':
+        model = densenet_121(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'alexnet':
+        model = alexnet(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()        
+    elif model_name == 'mixerb16':
+        model = mixerb16(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'mixnet_l':
+        model = mixnet_l(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
 
 
     return model

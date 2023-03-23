@@ -135,6 +135,84 @@ def se_resnet18(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2)
 
     return base_model
 
+def se_resnet34(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    model = timm.create_model('legacy_seresnet34',num_classes=1000,pretrained=True)
+    print(model)
+    num_ftrs=model.last_linear.out_features
+    
+    model.fc = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                        )
+    
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+def se_resnet50(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    model = timm.create_model('legacy_seresnet50',num_classes=1000,pretrained=True)
+    print(model)
+    num_ftrs=model.last_linear.out_features
+    
+    model.fc = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                        )
+    
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+def se_resnet101(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    model = timm.create_model('legacy_seresnet101',num_classes=1000,pretrained=True)
+    print(model)
+    num_ftrs=model.last_linear.out_features
+    
+    model.fc = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                        )
+    
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
 
 
 #####
@@ -160,6 +238,8 @@ def xception(num_classes=2):
                         )
 
     return model
+
+
 ###
 
 
@@ -267,6 +347,9 @@ def efficient_b3(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
     return base_model
 
 
+
+###res
+
 def resnet34(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
     """Constructs a ResNet-18 model.
     Args:
@@ -334,6 +417,116 @@ def resnet101(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
                         nn.ReLU(),
                         nn.Dropout(p=0.5),
                         nn.Linear(50,2)
+                        )
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+
+## densenet
+def densenet_121(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = timm.create_model('densenet121',num_classes=1000,pretrained=True)
+    print(model)
+    num_ftrs=model.classifier.in_features
+    
+    model.fc = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                        )
+    
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+
+
+## alexnet
+def alexnet(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    model = models.alexnet(pretrained=True)
+    num_ftrs = 1000
+
+    classifier = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,num_classes)
+                        )
+    model.classifier = nn.Sequential(*list(model.classifier) + [classifier])
+
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+
+####
+#else
+
+
+def mixnet_l(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    model = timm.create_model(model_name='mixnet_l',pretrained=True)
+    #print(model)
+    num_ftrs=model.classifier.in_features
+    model.classifier = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                        )
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+
+def mixerb16(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    model = timm.create_model(model_name='mixer_b16_224',pretrained=True)
+    #print(model)
+    num_ftrs=model.head.in_features
+    model.head = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
                         )
     base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
 
