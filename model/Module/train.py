@@ -75,7 +75,7 @@ def main():
                         help='list : [msf, baseline,wav_res,wav_res_latefusion,wav_res_concat,wav_res_concat_latefusion,\
                             wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel,\
                                 wav_res_phrase_eggfusion_lstm,wav_res_phrase_eggfusion_mmtm, wav_res_smile,\
-                                wav_res_phrase_eggfusion_mmtm_bam]')
+                                wav_res_phrase_eggfusion_mmtm_bam,wav_res_phrase_eggfusion_mmtm_nonlocal]')
     parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
     parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
     parser.add_argument('--dataset',type=str, default='phrase',
@@ -244,7 +244,7 @@ def main():
         best_valid_acc=0
         
         model = model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
         optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=weight_decay)
         
         print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))

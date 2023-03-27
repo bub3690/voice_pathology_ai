@@ -1050,6 +1050,50 @@ class MMTM(nn.Module):
 
     return visual * vis_out, skeleton * sk_out
 
+class MMTM_max(nn.Module):
+  def __init__(self, dim_visual, dim_skeleton, ratio):
+    super(MMTM_max, self).__init__()
+    dim = dim_visual + dim_skeleton
+    dim_out = int(2*dim/ratio)
+    self.fc_squeeze = nn.Linear(dim*2, dim_out)
+
+    self.fc_visual = nn.Linear(dim_out, dim_visual)
+    self.fc_skeleton = nn.Linear(dim_out, dim_skeleton)
+    self.relu = nn.ReLU()
+    self.sigmoid = nn.Sigmoid()
+
+    # initialize
+    # with torch.no_grad():
+    #   self.fc_squeeze.apply(init_weights)
+    #   self.fc_visual.apply(init_weights)
+    #   self.fc_skeleton.apply(init_weights)
+
+  def forward(self, visual, skeleton):
+    squeeze_array = []
+    for tensor in [visual, skeleton]:
+      tview = tensor.view(tensor.shape[:2] + (-1,))
+      squeeze_array.append(torch.mean(tview, dim=-1))
+      squeeze_array.append(torch.max(tview, dim=-1)[0])
+    squeeze = torch.cat(squeeze_array, 1)
+
+    excitation = self.fc_squeeze(squeeze)
+    excitation = self.relu(excitation)
+
+    vis_out = self.fc_visual(excitation)
+    sk_out = self.fc_skeleton(excitation)
+
+    vis_out = self.sigmoid(vis_out)
+    sk_out = self.sigmoid(sk_out)
+
+    dim_diff = len(visual.shape) - len(vis_out.shape)
+    vis_out = vis_out.view(vis_out.shape + (1,) * dim_diff)
+
+    dim_diff = len(skeleton.shape) - len(sk_out.shape)
+    sk_out = sk_out.view(sk_out.shape + (1,) * dim_diff)
+
+    return visual * vis_out, skeleton * sk_out
+
+
 
 class ResLayer_wav_fusion_mmtm(nn.Module):
     def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
@@ -1216,15 +1260,17 @@ class BAM(nn.Module):
 
     excitation_wav = self.wav_conv_squeeze(squeeze)
     excitation_wav = self.sigmoid(excitation_wav) # attention이기에, sigmoid
+    #excitation_wav = self.relu(excitation_wav)
 
     excitation_egg = self.egg_conv_squeeze(squeeze)
     excitation_egg = self.sigmoid(excitation_egg)
+    #excitation_egg = self.relu(excitation_egg)
 
-    return visual * excitation_wav, skeleton * excitation_egg
+    return visual + excitation_wav, skeleton + excitation_egg
 
 
 class non_local(nn.Module):
-    def __init__(self, dim_visual, dim_skeleton):
+    def __init__(self, dim_visual, dim_skeleton, wav_hw, egg_hw):
         super(non_local, self).__init__()
 
         self.wav_query_conv = nn.Conv2d(dim_visual,dim_visual//2 , kernel_size=1,bias=False)
@@ -1232,6 +1278,9 @@ class non_local(nn.Module):
         self.wav_key_conv = nn.Conv2d(dim_visual,dim_visual//2 , kernel_size=1,bias=False)
 
         self.wav_value_conv = nn.Conv2d(dim_visual,dim_visual//2 , kernel_size=1,bias=False)
+
+        self.wav_value_upsample = nn.Conv2d(dim_visual//2,dim_visual , kernel_size=1,bias=False)
+
 
 
         self.relu = nn.ReLU()
@@ -1256,16 +1305,19 @@ class non_local(nn.Module):
 
         key = self.wav_key_conv(concated_egg_wav)
 
+        value = self.wav_key_conv(concated_egg_wav)        
+
         representation = torch.matmul(query.permute(0,2,1),key) #hw x hw
         representation = torch.softmax(representation) # attention
+
+        representation = torch.matmul(value,representation)
+        representation = self.wav_value_upsample(representation)
+
+        representation = concated_egg_wav + representation
         
-        excitation_wav = self.wav_conv_squeeze(squeeze)
-        excitation_wav = self.sigmoid(excitation_wav) # attention이기에, sigmoid
 
-        excitation_egg = self.egg_conv_squeeze(squeeze)
-        excitation_egg = self.sigmoid(excitation_egg)
 
-        return visual * excitation_wav, skeleton * excitation_egg
+        return representation_wav, representation_egg
     
 
 
@@ -1275,10 +1327,10 @@ class ResLayer_wav_fusion_mmtm_bam(nn.Module):
         self.wav_model = models.resnet18(pretrained=True).cuda() 
         self.egg_model = models.resnet18(pretrained=True).cuda()
 
-        self.mmtm1 = MMTM(64,64,4)
-        self.mmtm2 = MMTM(128,128,4)      
-        self.mmtm3 = MMTM(256,256,4)     
-        self.mmtm4 = MMTM(512,512,4)
+        self.mmtm1 = MMTM_max(64,64,4)
+        self.mmtm2 = MMTM_max(128,128,4)      
+        self.mmtm3 = MMTM_max(256,256,4)     
+        self.mmtm4 = MMTM_max(512,512,4)
 
         self.bam1 = BAM()
         self.bam2 = BAM()
@@ -1400,6 +1452,154 @@ class ResLayer_wav_fusion_mmtm_bam(nn.Module):
         wav, egg = self.mmtm4(wav, egg)
 
         wav, egg = self.bam4(wav,egg)
+
+        wav = self.wav_model.avgpool(wav)
+        egg = self.egg_model.avgpool(egg)
+        #print(x.size())
+        
+        wav = torch.flatten(wav, 1)
+        wav = self.wav_model.fc(wav)# 512
+
+        egg = torch.flatten(egg, 1)
+        egg = self.egg_model.fc(egg)# 512        
+
+        x = torch.concat([wav,egg]  ,axis=1)
+
+        x = torch.cat([wav,egg],axis=1)
+        x = self.fc(x)
+        return x
+
+class ResLayer_wav_fusion_mmtm_nonlocal(nn.Module):
+    def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(ResLayer_wav_fusion_mmtm_nonlocal, self).__init__()
+        self.wav_model = models.resnet18(pretrained=True).cuda() 
+        self.egg_model = models.resnet18(pretrained=True).cuda()
+
+        self.mmtm1 = MMTM(64,64,8)
+        self.mmtm2 = MMTM(128,128,8)      
+        self.mmtm3 = MMTM(256,256,8)     
+        self.mmtm4 = MMTM(512,512,8)
+
+        self.bam1 = non_local()
+        self.bam2 = non_local()
+        self.bam3 = non_local()
+        self.bam4 = non_local()
+
+        # self.wav_model = MyResNet18()
+        # # if you need pretrained weights
+        # self.wav_model.load_state_dict(models.resnet18(pretrained=True).state_dict())
+        # self.egg_model = MyResNet18()
+        # # if you need pretrained weights
+        # self.egg_model.load_state_dict(models.resnet18(pretrained=True).state_dict())
+
+        self.num_ftrs = self.wav_model.fc.out_features
+                            
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+                
+        #self.fc = nn.Linear(2, 2),
+        self.fc = nn.Sequential(       
+                            nn.Linear(self.num_ftrs*2, self.num_ftrs),
+                            nn.BatchNorm1d(self.num_ftrs),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(self.num_ftrs,128),
+                            nn.BatchNorm1d(128),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(128,64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,2),
+                            )
+
+    #@classmethod   
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+
+    def forward(self, x_list, augment=False):
+        wav = self.mel_scale(x_list[:,0,...])
+        wav = wav.squeeze(1)
+        wav = torchaudio.functional.amplitude_to_DB(wav,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(wav)) ) 
+        wav = ResLayer_wav_fusion_lstm.batch_min_max(wav)        
+
+        egg = self.mel_scale(x_list[:,1,...])
+        egg = egg.squeeze(1)
+        egg = torchaudio.functional.amplitude_to_DB(egg,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(egg)) )
+        egg = ResLayer_wav_fusion_lstm.batch_min_max(egg)
+                
+
+        wav = torch.stack([wav,wav,wav],axis=1)
+        egg = torch.stack([egg,egg,egg],axis=1)
+
+
+        ##### INPUT LAYER #####
+
+        wav = self.wav_model.conv1(wav) # 64, 64, 151
+        #print('conv1 : ',x.size())
+        wav = self.wav_model.bn1(wav)
+        wav = self.wav_model.relu(wav)
+        wav = self.wav_model.maxpool(wav)
+        #print('maxpool : ',x.size()) # 64, 32, 76
+
+        egg = self.egg_model.conv1(egg) # 64, 64, 151
+        #print('conv1 : ',x.size())
+        egg = self.egg_model.bn1(egg)
+        egg = self.egg_model.relu(egg)
+        egg = self.egg_model.maxpool(egg)
+        #print('maxpool : ',x.size()) # 64, 32, 76
+
+
+        ##### FIRST RESIDUAL #####
+        wav = self.wav_model.layer1(wav) # 64, 32, 76
+        egg = self.egg_model.layer1(egg) # 64, 32, 76
+
+        #### FIRST MMTM ####
+        #wav, egg = self.mmtm1(wav, egg)
+
+        wav, egg = self.bam1(wav,egg)
+
+        ##### SECOND RESIDUAL #####
+        wav = self.wav_model.layer2(wav) # 128, 16, 38
+        egg = self.egg_model.layer2(egg) # 128, 16, 38
+
+        #### SECOND MMTM ####
+        #wav, egg = self.mmtm2(wav, egg)
+
+        wav, egg = self.bam2(wav,egg)
+
+        ##### THIRD RESIDUAL #####
+        wav = self.wav_model.layer3(wav) # 256, 8, 19
+        egg = self.egg_model.layer3(egg) # 256, 8, 19
+
+        #### THIRD MMTM ####
+        #wav, egg = self.mmtm3(wav, egg)
+
+        #wav, egg = self.bam3(wav,egg)
+
+        ##### FOURTH RESIDUAL #####
+        wav = self.wav_model.layer4(wav) # 512, 4, 10
+        egg = self.egg_model.layer4(egg) # 512, 4, 10
+
+        #### FOURTH MMTM ####
+        #wav, egg = self.mmtm4(wav, egg)
+
+        #wav, egg = self.bam4(wav,egg)
 
         wav = self.wav_model.avgpool(wav)
         egg = self.egg_model.avgpool(egg)
@@ -2081,6 +2281,11 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
                                          win_len=mel_run_config['win_length'],
                                          n_fft=mel_run_config["n_fft"],
                                          hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_res_phrase_eggfusion_mmtm_nonlocal':
+        model = ResLayer_wav_fusion_mmtm_nonlocal(mel_bins=mel_run_config['n_mels'],
+                                         win_len=mel_run_config['win_length'],
+                                         n_fft=mel_run_config["n_fft"],
+                                         hop_len=mel_run_config['hop_length']).cuda()        
     elif model_name=='wav_res_time_attention':
         model = ResLayer_attention().cuda()
     elif model_name=='wav_res_splicing':
