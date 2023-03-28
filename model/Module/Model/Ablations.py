@@ -116,7 +116,7 @@ def se_resnet18(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2)
     """
     # fc layer 추가해서 고쳐보기
     model = timm.create_model('legacy_seresnet18',num_classes=1000,pretrained=True)
-    print(model)
+    #print(model)
     num_ftrs=model.last_linear.out_features
     
     model.fc = nn.Sequential(       
@@ -142,7 +142,7 @@ def se_resnet34(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2)
     """
     # fc layer 추가해서 고쳐보기
     model = timm.create_model('legacy_seresnet34',num_classes=1000,pretrained=True)
-    print(model)
+    #print(model)
     num_ftrs=model.last_linear.out_features
     
     model.fc = nn.Sequential(       
@@ -168,7 +168,7 @@ def se_resnet50(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2)
     """
     # fc layer 추가해서 고쳐보기
     model = timm.create_model('legacy_seresnet50',num_classes=1000,pretrained=True)
-    print(model)
+    #print(model)
     num_ftrs=model.last_linear.out_features
     
     model.fc = nn.Sequential(       
@@ -194,7 +194,7 @@ def se_resnet101(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
     """
     # fc layer 추가해서 고쳐보기
     model = timm.create_model('legacy_seresnet101',num_classes=1000,pretrained=True)
-    print(model)
+    #print(model)
     num_ftrs=model.last_linear.out_features
     
     model.fc = nn.Sequential(       
