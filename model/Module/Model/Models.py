@@ -7,7 +7,10 @@ import torchaudio
 import torchaudio.transforms as T
 import librosa
 
+
 from torchvision.models import ResNet
+from torchvision.models import ResNet18_Weights
+
 import timm
 
 from torchvision.models.resnet import BasicBlock, ResNet
@@ -33,7 +36,7 @@ from .Ablations import xception,\
 class ResLayer(nn.Module):
     def __init__(self):
         super(ResLayer, self).__init__()
-        self.model = models.resnet18(pretrained=True).cuda() 
+        self.model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
         #self.num_ftrs = self.model.fc.out_features
         self.num_ftrs = self.model.fc.in_features
 
@@ -142,8 +145,8 @@ class Resnet_wav(nn.Module):
         stretch_factor=0.8
         self.spec_aug = torch.nn.Sequential(
             #T.TimeStretch(stretch_factor, fixed_rate=True),
-            T.FrequencyMasking(freq_mask_param=80),
-            T.TimeMasking(time_mask_param=40),
+            T.FrequencyMasking(freq_mask_param=10),
+            T.TimeMasking(time_mask_param=30),
         )
 
     #@classmethod
@@ -178,7 +181,8 @@ class Resnet_wav(nn.Module):
         mel = Resnet_wav.batch_min_max(mel)
 
         #mel = self.power_to_db(mel)
-        #mel = self.spec_aug(mel)
+        if self.training:
+            mel = self.spec_aug(mel)
         #mel = (mel-torch.mean(mel))/torch.std(mel)
         #out = out.mean(axis=2)
         #out=self.fc(out)
@@ -198,7 +202,7 @@ class Resnet_wav_smile(nn.Module):
 
         #self.num_ftrs = 63
 
-        self.res = models.resnet18(pretrained=True).cuda() 
+        self.res = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
         #self.num_ftrs = self.model.fc.out_features
         self.num_ftrs = self.res.fc.in_features
 
@@ -718,7 +722,7 @@ class ResLayer_attention(nn.Module):
         #self.model = models.resnet18(pretrained=True).cuda()
         self.model = DynamicResnet18()
         # if you need pretrained weights
-        self.model.load_state_dict(models.resnet18(pretrained=True).state_dict())
+        self.model.load_state_dict(models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).state_dict())
 
         self.model.get_time_attention_layer()
         self.model.get_freq_attention_layer()
@@ -1098,8 +1102,8 @@ class MMTM_max(nn.Module):
 class ResLayer_wav_fusion_mmtm(nn.Module):
     def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(ResLayer_wav_fusion_mmtm, self).__init__()
-        self.wav_model = models.resnet18(pretrained=True).cuda() 
-        self.egg_model = models.resnet18(pretrained=True).cuda()
+        self.wav_model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
+        self.egg_model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
 
         self.mmtm1 = MMTM(64,64,4)
         self.mmtm2 = MMTM(128,128,4)      
@@ -1324,8 +1328,8 @@ class non_local(nn.Module):
 class ResLayer_wav_fusion_mmtm_bam(nn.Module):
     def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(ResLayer_wav_fusion_mmtm_bam, self).__init__()
-        self.wav_model = models.resnet18(pretrained=True).cuda() 
-        self.egg_model = models.resnet18(pretrained=True).cuda()
+        self.wav_model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
+        self.egg_model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
 
         self.mmtm1 = MMTM_max(64,64,4)
         self.mmtm2 = MMTM_max(128,128,4)      
@@ -1472,8 +1476,8 @@ class ResLayer_wav_fusion_mmtm_bam(nn.Module):
 class ResLayer_wav_fusion_mmtm_nonlocal(nn.Module):
     def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(ResLayer_wav_fusion_mmtm_nonlocal, self).__init__()
-        self.wav_model = models.resnet18(pretrained=True).cuda() 
-        self.egg_model = models.resnet18(pretrained=True).cuda()
+        self.wav_model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
+        self.egg_model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
 
         self.mmtm1 = MMTM(64,64,8)
         self.mmtm2 = MMTM(128,128,8)      

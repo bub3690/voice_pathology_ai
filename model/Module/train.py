@@ -140,13 +140,13 @@ def main():
 
     #3. 하이퍼 파라미터
     BATCH_SIZE =  args.batch_size #한 배치당 32개 음성데이터
-    EPOCHS = 40 # 전체 데이터 셋을 40번 반복
+    EPOCHS = args.epochs # 전체 데이터 셋을 40번 반복
     lr=1e-4
     augment_kind=args.augment
     weight_decay = 0
 
     augment_params = dict()
-    augment_params['spec_augment']=[30, 13, 1.0] # time_mask_param,freq_mask_param, augement_p
+    augment_params['spec_augment']=[30, 10, 0.5] # time_mask_param,freq_mask_param, augement_p
     augment_params['crop']=[1, 50, 1.0] # augment_n , augment_size, augement_p
 
 
@@ -244,7 +244,7 @@ def main():
         best_valid_acc=0
         
         model = model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
+        criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
         optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=weight_decay)
         
         print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))

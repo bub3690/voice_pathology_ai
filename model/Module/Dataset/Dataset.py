@@ -553,6 +553,10 @@ class svd_dataset_wav(Dataset):
         # sig = np.tile(sig,(2,))
 
         length = self.mel_params["sr"]*3 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        
+        # if length-sig.shape[0] >0:
+        #     sig=np.pad(sig,(0,length-sig.shape[0]),mode='wrap')#상하, 좌우
+        # else:
         pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
         sig = pad1d(sig,length)
         
@@ -561,6 +565,9 @@ class svd_dataset_wav(Dataset):
         ###
 
         sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
+        
+        
+        
         sig=sig.unsqueeze(0)
         
         return sig, self.classes.index(self.label[idx]), str(self.path_list[idx]), origin_length
