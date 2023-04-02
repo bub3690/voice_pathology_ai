@@ -15,6 +15,8 @@ from dropblock import DropBlock2D, LinearScheduler
 
 import torchvision.models as models
 from torchvision.models.resnet import ResNet, BasicBlock
+from torchvision.models import ResNet18_Weights
+
 
 
 ###
@@ -450,6 +452,111 @@ def densenet_121(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
     return base_model
 
 
+## vgg series
+def vgg_16(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    num_ftrs = 1000
+    model = models.vgg16_bn(pretrained=True,num_classes=num_ftrs)
+    
+    classifier = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,num_classes)
+                        )
+    model.classifier = nn.Sequential(*list(model.classifier) + [classifier])
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+
+
+def vgg_19(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    num_ftrs = 1000
+    model = models.vgg19_bn(pretrained=True,num_classes=num_ftrs)
+    
+    classifier = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,num_classes)
+                        )
+    model.classifier = nn.Sequential(*list(model.classifier) + [classifier])
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+class ResLayer2(nn.Module):
+    def __init__(self):
+        super(ResLayer2, self).__init__()
+        self.model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
+        #self.num_ftrs = self.model.fc.out_features
+        self.num_ftrs = self.model.fc.in_features
+
+        self.model.fc = nn.Sequential(       
+            nn.Linear(512*7*7, 4096,bias=True),
+            nn.BatchNorm1d(4096),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(4096, 4096,bias=True),
+            nn.BatchNorm1d(4096),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(4096, 1000,bias=True),
+            nn.BatchNorm1d(1000),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(1000, 64,bias=True),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(64, 50,bias=True),
+            nn.BatchNorm1d(50),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(50, 2,bias=True),                      
+                            )
+
+        self.model.avgpool = nn.AdaptiveAvgPool2d(output_size=(7,7))
+        
+                            
+
+    def forward(self, x):
+        #print(x.size())
+        x = self.model(x)
+        #x  = self.fc(x)
+        return x
+
+def res18time(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    # fc layer 추가해서 고쳐보기
+    num_ftrs = 1000
+    model = ResLayer2()
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+
+
+
 
 ## alexnet
 def alexnet(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
@@ -531,3 +638,10 @@ def mixerb16(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
     base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
 
     return base_model
+
+
+
+if __name__=='__main__':
+    vgg=ResLayer2()
+    print(vgg(torch.randn((2,3,128,301))).size())
+    print(vgg)

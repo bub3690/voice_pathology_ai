@@ -25,7 +25,8 @@ from .Ablations import xception,\
     se_resnet18,se_resnet34,se_resnet50,se_resnet101,\
     mixerb16,mixnet_l,\
     densenet_121,\
-    alexnet
+    alexnet,\
+    vgg_19,vgg_16,res18time
 
 
 
@@ -51,6 +52,7 @@ class ResLayer(nn.Module):
                             nn.Dropout(p=0.5),
                             nn.Linear(50,2)
                             )
+                            
 
     def forward(self, x):
         #print(x.size())
@@ -181,8 +183,8 @@ class Resnet_wav(nn.Module):
         mel = Resnet_wav.batch_min_max(mel)
 
         #mel = self.power_to_db(mel)
-        if self.training:
-            mel = self.spec_aug(mel)
+        # if self.training:
+        #     mel = self.spec_aug(mel)
         #mel = (mel-torch.mean(mel))/torch.std(mel)
         #out = out.mean(axis=2)
         #out=self.fc(out)
@@ -2346,6 +2348,12 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = densenet_121(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'alexnet':
         model = alexnet(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()        
+    elif model_name == 'vgg16':
+        model = vgg_16(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()        
+    elif model_name == 'vgg19':
+        model = vgg_19(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'res18_time':
+        model = res18time(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda() 
     elif model_name == 'mixerb16':
         model = mixerb16(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'mixnet_l':

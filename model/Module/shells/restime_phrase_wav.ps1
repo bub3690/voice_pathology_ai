@@ -1,0 +1,5 @@
+python train.py --wandb True --batch-size 16 --model res18_time --dataset phrase --tag res18_time wav phrase --seed 1004 --save-result True --descript "wav phrase res18_time speaker independent"
+python train.py --wandb True --batch-size 16 --model res18_time --dataset phrase --tag res18_time wav phrase --seed 1005 --save-result True --descript "wav phrase res18_time speaker independent"
+python train.py --wandb True --batch-size 16 --model res18_time --dataset phrase --tag res18_time wav phrase --seed 1006 --save-result True --descript "wav phrase res18_time speaker independent"
+python train.py --wandb True --batch-size 16 --model res18_time --dataset phrase --tag res18_time wav phrase --seed 1007 --save-result True --descript "wav phrase res18_time speaker independent"
+python train.py --wandb True --batch-size 16 --model res18_time --dataset phrase --tag res18_time wav phrase --seed 1008 --save-result True --descript "wav phrase res18_time speaker independent"
