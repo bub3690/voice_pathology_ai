@@ -3,128 +3,128 @@ import os
 
 def make_data(dataset):
     if dataset == 'phrase':
-        phras_file_path = "../../voice_data/organics_ver2/phrase_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/phrase_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'phrase_egg_fusion':
         #egg 추가하기.
         print('egg')
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2_EGG.pickle"),
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/phrase_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/phrase_dict_ver2_EGG_all.pickle"),
                             ]                
     elif dataset == 'a_h':
-        phras_file_path = "../../voice_data/organics_ver2/a_high_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/a_high_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'a_l':
-        phras_file_path = "../../voice_data/organics_ver2/a_low_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/a_low_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'a_n':
-        phras_file_path = "../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/a_normal_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'a_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/a_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_normal_dict_ver2_all.pickle")
                             ]
         fusion_name_list = ["a_h","a_l","a_n"]
     elif dataset == 'i_h':
-        phras_file_path = "../../voice_data/organics_ver2/i_high_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/i_high_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'i_l':
-        phras_file_path = "../../voice_data/organics_ver2/i_low_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/i_low_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'i_n':
-        phras_file_path = "../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/i_normal_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'i_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/i_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/i_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_normal_dict_ver2_all.pickle")
                             ]
         fusion_name_list = ["i_h","i_l","i_n"]
     elif dataset == 'u_h':
-        phras_file_path = "../../voice_data/organics_ver2/u_high_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/u_high_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'u_l':
-        phras_file_path = "../../voice_data/organics_ver2/u_low_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/u_low_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'u_n':
-        phras_file_path = "../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/u_normal_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
     elif dataset == 'u_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/u_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/u_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_normal_dict_ver2_all.pickle")
                             ]
         fusion_name_list = ["u_h","u_l","u_n"]
     elif dataset == 'aiu_n_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/a_normal_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_normal_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_normal_dict_ver2_all.pickle")
                             ]
     elif dataset == 'aiu_h_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_high_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/a_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_high_dict_ver2_all.pickle")
                             ]
     elif dataset == 'aiu_l_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/a_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_low_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/a_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_low_dict_ver2_all.pickle")
                             ]
     elif dataset == 'phrase_a_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/phrase_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_normal_dict_ver2_all.pickle")
                             ]
     elif dataset == 'phrase_i_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/phrase_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_normal_dict_ver2_all.pickle")
                             ]
     elif dataset == 'phrase_u_fusion':
-        fusion_file_list = [os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle")
+        fusion_file_list = [os.path.abspath("../../voice_data/all_data_ver2/phrase_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_normal_dict_ver2_all.pickle")
                             ]
     elif dataset == 'vowel_fusion':
         fusion_file_list = [
-                            os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_normal_dict_ver2_all.pickle"),
 
-                            os.path.abspath("../../voice_data/organics_ver2/i_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_normal_dict_ver2_all.pickle"),
 
-                            os.path.abspath("../../voice_data/organics_ver2/u_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_normal_dict_ver2_all.pickle"),
                             ]        
                             
     elif dataset == 'all_fusion':
         fusion_file_list = [
-                            os.path.abspath("../../voice_data/organics_ver2/phrase_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/phrase_dict_ver2_all.pickle"),
 
-                            os.path.abspath("../../voice_data/organics_ver2/a_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/a_neutral_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/a_normal_dict_ver2_all.pickle"),
 
-                            os.path.abspath("../../voice_data/organics_ver2/i_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/i_neutral_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/i_normal_dict_ver2_all.pickle"),
 
-                            os.path.abspath("../../voice_data/organics_ver2/u_high_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_low_dict_ver2.pickle"),
-                            os.path.abspath("../../voice_data/organics_ver2/u_neutral_dict_ver2.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_high_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_low_dict_ver2_all.pickle"),
+                            os.path.abspath("../../voice_data/all_data_ver2/u_normal_dict_ver2_all.pickle"),
 
                             ]
         fusion_name_list = ["phrase","a_h","a_l","a_n","i_h","i_l","i_n","u_h","u_l","u_n"]
         
     else:
-        phras_file_path = "../../voice_data/organics/phrase_sig_dict.pickle"
+        phras_file_path = "../../voice_data/all_data_ver2/phrase_dict_ver2_all.pickle"
         phras_file_path_abs = os.path.abspath(phras_file_path)
 
 

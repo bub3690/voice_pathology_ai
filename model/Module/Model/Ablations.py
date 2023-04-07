@@ -453,6 +453,60 @@ def densenet_121(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2
 
 
 ## vgg series
+def vgg_11(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    num_ftrs = 1000
+    model = models.vgg11_bn(pretrained=True,num_classes=num_ftrs)
+    
+    classifier = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,num_classes)
+                        )
+    model.classifier = nn.Sequential(*list(model.classifier) + [classifier])
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+
+
+def vgg_13(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+    """Constructs a ResNet-18 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    # fc layer 추가해서 고쳐보기
+    num_ftrs = 1000
+    model = models.vgg13_bn(pretrained=True,num_classes=num_ftrs)
+    
+    classifier = nn.Sequential(       
+        nn.Linear(num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,num_classes)
+                        )
+    model.classifier = nn.Sequential(*list(model.classifier) + [classifier])
+    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+
+    return base_model
+
+
+
 def vgg_16(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
     """Constructs a ResNet-18 model.
     Args:

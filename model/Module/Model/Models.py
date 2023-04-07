@@ -26,7 +26,7 @@ from .Ablations import xception,\
     mixerb16,mixnet_l,\
     densenet_121,\
     alexnet,\
-    vgg_19,vgg_16,res18time
+    vgg_19,vgg_16,res18time,vgg_13,vgg_11
 
 
 
@@ -1197,14 +1197,14 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         egg = self.egg_model.layer1(egg) # 64, 32, 76
 
         #### FIRST MMTM ####
-        wav, egg = self.mmtm1(wav, egg)
+        #wav, egg = self.mmtm1(wav, egg)
 
         ##### SECOND RESIDUAL #####
         wav = self.wav_model.layer2(wav) # 128, 16, 38
         egg = self.egg_model.layer2(egg) # 128, 16, 38
 
         #### SECOND MMTM ####
-        wav, egg = self.mmtm2(wav, egg)
+        #wav, egg = self.mmtm2(wav, egg)
 
         ##### THIRD RESIDUAL #####
         wav = self.wav_model.layer3(wav) # 256, 8, 19
@@ -2352,6 +2352,10 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = vgg_16(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()        
     elif model_name == 'vgg19':
         model = vgg_19(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'vgg13':
+        model = vgg_13(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name == 'vgg11':
+        model = vgg_11(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name == 'res18_time':
         model = res18time(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda() 
     elif model_name == 'mixerb16':

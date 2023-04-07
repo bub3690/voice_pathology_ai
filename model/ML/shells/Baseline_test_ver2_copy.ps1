@@ -1,5 +1,0 @@
-python train.py --wandb True --batch-size 16 --model wav_res_concat_allfusion --dataset all_fusion --tag baseline wav all_fusion vowel_concat --seed 1004 --descript "wav all fusion concat resnet18 speaker independent"
-python train.py --wandb True --batch-size 16 --model wav_res_concat_allfusion --dataset all_fusion --tag baseline wav all_fusion vowel_concat --seed 1005 --descript "wav all fusion concat resnet18 speaker independent"
-python train.py --wandb True --batch-size 16 --model wav_res_concat_allfusion --dataset all_fusion --tag baseline wav all_fusion vowel_concat --seed 1006 --descript "wav all fusion concat resnet18 speaker independent"
-python train.py --wandb True --batch-size 16 --model wav_res_concat_allfusion --dataset all_fusion --tag baseline wav all_fusion vowel_concat --seed 1007 --descript "wav all fusion concat resnet18 speaker independent"
-python train.py --wandb True --batch-size 16 --model wav_res_concat_allfusion --dataset all_fusion --tag baseline wav all_fusion vowel_concat --seed 1008 --descript "wav all fusion concat resnet18 speaker independent"
