@@ -7,6 +7,7 @@ import scipy
 
 import opensmile
 from tqdm import tqdm
+import parselmouth
 
 
 # write function which transforms list [1,7,8] -> ["1-phrase.wav", "7-phrase.wav", "8-phrase.wav"]
@@ -39,6 +40,21 @@ def statistical_feature(feature_vec):
 
 
 ### feature extractor
+def hnr_ratio(filepath,sr=16000):
+    """
+    Using parselmouth library fetching harmonic noise ratio ratio
+    Args:
+        path: (.wav) audio file location
+    Returns:
+        (list) list of hnr ratio for each voice frame, min,max and mean hnr
+    """
+    sound = parselmouth.Sound(filepath,sr)
+    harmonicity = sound.to_harmonicity_ac(time_step=0.1)
+    hnr_all_frames = harmonicity.values  # [harmonicity.values != -200] nan it (****)
+    hnr_all_frames = np.where(hnr_all_frames == -200, np.NaN, hnr_all_frames)
+    return hnr_all_frames.transpose()
+
+
 def load_audio_dataset_perturbation(audio_files,mel_run_config,sr=16000):
     """
     논문 Voice Disorder Identification by Using Machine Learning Techniques    
@@ -60,8 +76,15 @@ def load_audio_dataset_perturbation(audio_files,mel_run_config,sr=16000):
 
         shimmer = 20*abs(np.log10(amplitude[0][1:]/amplitude[0][:-1])).mean()
         # Extract HNR (Harmonic-to-Noise Ratio)
-        hnr = librosa.effects.harmonic(audio)
+        # 수정 필요.
+        hnr=hnr_ratio(PhraseData.phrase_dict[audio_path],sr=sr)
         
+        # code to drop na in numpy
+        hnr=hnr[~np.isnan(hnr).any(axis=1)]
+        # non talking bug
+        if hnr.shape[0]==0:
+            hnr=np.array([0])
+
         # Extract 13 MFCC (Mel-frequency cepstral coefficients)
         mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=13)
 
@@ -91,7 +114,7 @@ def load_audio_dataset_conventional(audio_files,mel_run_config,sr=16000):
     harmonic-to-noise ratio,
     detrended fluctuation analysis parameters,
     glottis quotients (open, closed),
-    glottal-to-noise excitation ratio,
+    glottal-to-noise excitation ratio (V),
     Teager–Kaiser energy operator,
     modulation energy, 
     and normalized noise energy.    
