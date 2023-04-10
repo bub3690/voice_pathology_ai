@@ -1,0 +1,4 @@
+python train_ml.py --wandb True --model linear_svm --name linear_svm --feature perturbation --dataset phrase --tag linear_svm phrase set100 --seed 1004 --data-probs 1 --save-result True --descript "phrase linear_svm speaker independent"
+python train_ml.py --wandb True --model linear_svm --name linear_svm --feature perturbation --dataset phrase --tag linear_svm phrase set100 --seed 1004 --data-probs 2 --save-result True --descript "phrase linear_svm speaker independent"
+python train_ml.py --wandb True --model linear_svm --name linear_svm --feature perturbation --dataset phrase --tag linear_svm phrase set100 --seed 1004 --data-probs 3 --save-result True --descript "phrase linear_svm speaker independent"
+python train_ml.py --wandb True --model linear_svm --name linear_svm --feature perturbation --dataset phrase --tag linear_svm phrase set100 --seed 1004 --data-probs 4 --save-result True --descript "phrase linear_svm speaker independent"  

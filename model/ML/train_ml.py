@@ -23,11 +23,10 @@ from Dataset.Data import make_data # phrase 데이터를 담아둔다.
 from Dataset.Dataset import load_data,load_test_data
 from Model.Models import model_initialize
 from Utils.Utils import get_mean_std,get_scaler,save_result
-from Trainer.Trainer import test_evaluate, train, evaluate
+from Trainer.Trainer import test_evaluate, train
 
 
 
-import torchaudio
 import json
 #import torchaudio.functional as F
 
@@ -35,7 +34,7 @@ import json
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import f1_score
-
+import joblib # sklearn model saving
 
 
 
@@ -60,8 +59,6 @@ def main():
     
     # Training settings
     parser = argparse.ArgumentParser(description='Voice Disorder Detection Trainer')
-    parser.add_argument('--batch-size', type=int, default=32, metavar='batch',
-                        help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=40, metavar='EPOCH',
                         help='number of epochs to train (default: 40)')
     parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
@@ -71,19 +68,22 @@ def main():
     parser.add_argument('--model',type=str, default='baseline',
                         help='list : [linear_svm,polynomial_svm,rbf_svm]')
     parser.add_argument('--feature',type=str, default='baseline',
-                            help='list : [acoustics,]')    
+                            help='list : [perturbation,]')    
     parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
     parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
     parser.add_argument('--dataset',type=str, default='phrase',
                         help='list : [phrase, a_h, a_n, a_l, a_fusion ... ]')
-    parser.add_argument('--name',type=str, default='res18',
+    parser.add_argument('--name',type=str, default='linear_svm',
                             help='write custom model for wandb')
+    parser.add_argument('--inference',type=bool,default=False,
+                        help='is it for inference? move to valid code')    
     parser.add_argument('--normalize',type=bool,default=False,
                         help='true or false to get std normalize')
     parser.add_argument('--project-name',type=str, default='SVD-voice-disorder',
                             help='project name for wandb')
     parser.add_argument('--workers',type=int, default=0,
-                            help='num_workers')    
+                            help='num_workers')
+                            
     parser.add_argument("--augment", nargs='+', type=str,help="[crop,spec_augment]",default=[])
     parser.add_argument('--tag',type=str,default='',nargs='+',help='tag for wandb')
     parser.add_argument('--seed',type=int,default=1004,help='set the test seed')
@@ -117,15 +117,15 @@ def main():
     speaker_file_path_abs = os.path.abspath(speaker_file_path)
 
     X_train_list, X_valid_list, X_test, Y_train_list, Y_valid_list, Y_test = cv_spliter(random_state, speaker_file_path_abs, data_probs=args.data_probs)
-        
+    
 
 
     # # 데이터로더
 
 
     #3. 하이퍼 파라미터
-    BATCH_SIZE =  args.batch_size #한 배치당 32개 음성데이터
-    EPOCHS = args.epochs # 전체 데이터 셋을 40번 반복
+    #BATCH_SIZE =  args.batch_size #한 배치당 32개 음성데이터
+    #EPOCHS = args.epochs # 전체 데이터 셋을 40번 반복
     lr=1e-4
     augment_kind=args.augment
     weight_decay = 0
@@ -138,8 +138,8 @@ def main():
     if args.wandb:
         wandb.config.update({
             "learning_rate": lr,
-            "epochs": EPOCHS,
-            "batch_size": BATCH_SIZE,
+            #"epochs": EPOCHS,
+            #"batch_size": BATCH_SIZE,
             "augment":augment_kind,
             "weight_decay":weight_decay,
             "특이사항":args.descript,
@@ -165,6 +165,7 @@ def main():
     scaler_list = []
     
     if args.normalize and args.model == 'wav_res_smile':
+        #스마일 뿐만 아니라 handcrafted 이면 모두 normalize 하도록 고쳐야함.
         print("normalize 시작")
         #spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
         #mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
@@ -186,63 +187,58 @@ def main():
     elif args.data_subset==1:
         data_subset = 'organics'
 
-    for data_ind in range(1,6):
 
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
-        print(check_path)
-        train_x_data,train_y_data, valid_x_data,valid_y_data = load_data( X_train_list[data_ind-1],
-                                                    X_valid_list[data_ind-1],
-                                                    Y_train_list[data_ind-1],
-                                                    Y_valid_list[data_ind-1],
-                                                    args.feature,
-                                                    spectro_run_config,
-                                                    mel_run_config,
-                                                    mfcc_run_config,
-                                                    args.normalize,
-                                                    norm_mean_list,
-                                                    norm_std_list,
-                                                    scaler_list,
-                                                    args.model,
-                                                    args.dataset,
-                                                    args.augment,
-                                                    augment_params,
-                                                    num_workers=args.workers)
-        best_train_acc=0 # accuracy 기록용
-        best_valid_acc=0
-        
-        model = model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        
-        print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))
-        for Epoch in range(1,EPOCHS+1):
-            train_loss,train_accuracy = train(model,args.model,train_loader)
-            valid_loss,valid_accuracy = evaluate(model,args.model,validation_loader)
+    if args.inference==False:
+        for data_ind in range(1,6):
+
+            ## 0407 trainer까지 작성했음. 여기부터 작성 필요.
+
+            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
+            print(check_path)
+            train_x_data,train_y_data, valid_x_data,valid_y_data = load_data(
+                                                        X_train_list[data_ind-1],
+                                                        X_valid_list[data_ind-1],
+                                                        Y_train_list[data_ind-1],
+                                                        Y_valid_list[data_ind-1],
+                                                        args.feature,
+                                                        mel_run_config,
+                                                        args.normalize,
+                                                        norm_mean_list,
+                                                        norm_std_list,
+                                                        scaler_list,
+                                                        args.model,
+                                                        args.dataset,
+                                                        args.augment,
+                                                        augment_params,
+                                                        num_workers=args.workers)
+            best_train_acc=0 # accuracy 기록용
+            best_valid_acc=0
             
-            logger_valid_acc = "valid {}fold Accuracy".format(data_ind)
-            logger_train_acc = "train {}fold Accuracy".format(data_ind)
-            logger_valid_loss = "valid {}fold loss".format(data_ind)
-            logger_train_loss = "train {}fold loss".format(data_ind)
+            model = model_initialize(args.model,mel_run_config,save_result=args.save_result)
             
+            print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))
+
+            model,train_score,val_score = train(model,args.model,train_x_data,train_y_data,valid_x_data,valid_y_data)
+            #y_pred,y_test = test_evaluate(model,args.model,valid_x_data,valid_y_data,X_valid_list[data_ind-1]) # 없어도 되는 상태
+            
+            train_accs.append(train_score)
+            valid_accs.append(val_score)
+
+            model.save_checkpoint(check_path)
+
+            print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind,train_accs[data_ind-1],valid_accs[data_ind-1] ))
 
             if args.wandb:
-                wandb.run.summary.update({"test 평균 acc" : average_accuracy/5,
-                                        "test 평균 f1" : average_fscore/5,
-                                        "test 평균 UAR" : average_uar/5,
-                                        "test 평균 specificity": average_specificity/5,
-                                        "test 평균 sensitivity": average_sensitivity/5,
-                                        })
+                wandb.run.summary.update({"best_valid_{}fold_acc".format(data_ind) : best_valid_acc})
 
-            print("\n[EPOCH:{}]\t Train Loss:{:.4f}\t Train Acc:{:.2f} %  | \tValid Loss:{:.4f} \tValid Acc: {:.2f} %\n".
-                format(Epoch,train_loss,train_accuracy,valid_loss,valid_accuracy))
+
+        # # Model 결과 확인
+        sum_valid=0
+        for data_ind in range(5):
+            print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
+            sum_valid+=valid_accs[data_ind]
             
-
-
-    # # Model 결과 확인
-    sum_valid=0
-    for data_ind in range(5):
-        print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
-        sum_valid+=valid_accs[data_ind]
-        
-    print("평균 검증 정확도",sum_valid/5,"%")
+        print("평균 검증 정확도",sum_valid/5,"%")
     
 
     # validation result
@@ -256,16 +252,17 @@ def main():
     if args.save_result:
         print("save valid result")
         for data_ind in range(1,6):
-            model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
-            model.load_state_dict(torch.load(check_path))            
-            test_loader = load_test_data(
+            # initialize 없이 바로할지.
+            model=model_initialize(args.model,mel_run_config,save_result=args.save_result)
+            
+            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
+            
+            model.load_checkpoint(check_path)            
+            valid_x_data,valid_y_data = load_test_data(
                                             X_valid_list[data_ind-1],
                                             Y_valid_list[data_ind-1],
                                             args.feature,
-                                            spectro_run_config,
                                             mel_run_config,
-                                            mfcc_run_config,    
                                             args.normalize,
                                             norm_mean_list,
                                             norm_std_list,
@@ -274,7 +271,7 @@ def main():
                                             args.dataset,
                                             num_workers=args.workers
                                         )
-            predictions,answers,test_loss,validation_outputs,validation_files = test_evaluate(model,args.model,test_loader, DEVICE, criterion,save_result=True)
+            predictions,answers,validation_outputs,validation_files = test_evaluate(model,args.model,valid_x_data,valid_y_data,X_valid_list[data_ind-1],save_result=True)
 
             all_filename.append(validation_files)
             all_prediction.append(predictions)
@@ -290,27 +287,24 @@ def main():
     # - test set
     # - confusion matrix
 
-                
-    # Confusion matrix (resnet18)
     # kfold의 confusion matrix는 계산 방법이 다르다.
     # 모델을 각각 불러와서 test set을 평가한다.
 
 
 
-    test_loader = load_test_data(
-        X_test,
-        Y_test,
-        BATCH_SIZE,
-        spectro_run_config,
-        mel_run_config,
-        mfcc_run_config,    
-        args.normalize,
-        norm_mean_list,
-        norm_std_list,
-        scaler_list,
-        args.model,
-        args.dataset,
-        num_workers=args.workers)
+    test_x_data,test_y_data = load_test_data(
+                                            X_test,
+                                            Y_test,
+                                            args.feature,
+                                            mel_run_config,
+                                            args.normalize,
+                                            norm_mean_list,
+                                            norm_std_list,
+                                            scaler_list,
+                                            args.model,
+                                            args.dataset,
+                                            num_workers=args.workers
+                                        )
 
 
     cf = np.zeros((2,2))
@@ -322,14 +316,13 @@ def main():
     average_specificity = 0    
 
     for data_ind in range(1,6):
-        model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
-        model.load_state_dict(torch.load(check_path))
+        model=model_initialize(args.model,mel_run_config,save_result=args.save_result)
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
 
-        predictions,answers,test_loss = test_evaluate(model,args.model,test_loader, DEVICE, criterion)
-        predictions=[ dat.cpu().numpy() for dat in predictions]
-        answers=[ dat.cpu().numpy() for dat in answers]
 
+        model.load_checkpoint(check_path)   
+
+        predictions,answers = test_evaluate(model,args.model,test_x_data,test_y_data,X_test,save_result=False)
         
         cf = confusion_matrix(answers, predictions)
         cf_list.append(cf)

@@ -164,9 +164,9 @@ def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file
     fold_excel = []
     for i in range(5):
         fold_excel.append(pd.DataFrame({'filename':all_filename[i],
-                    'prediction':[data.cpu().numpy().item() for data in all_prediction[i]],
-                    'answer':[ data.cpu().numpy().item() for data in all_answers[i]],
-                    'prob':[ data.cpu().numpy().item() for data in all_probs[i]],
+                    'prediction':all_prediction[i],
+                    'answer':all_answers[i],
+                    'prob':all_probs[i][:,1].tolist(),
                     'fold':i+1}))
     #print(fold_excel)
     #import pdb;pdb.set_trace()
@@ -175,6 +175,7 @@ def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file
     
     answer_paper=pd.read_excel(speaker_file_path_abs)
     answer_paper['RECORDING']=answer_paper['RECORDING'].values.astype(str)
+    fold_excel_all['filename']=fold_excel_all['filename'].values.astype(str)
     #answer_paper[['RECORDING','DETAIL','AGE']]
     merge_left = pd.merge(fold_excel_all,answer_paper[['RECORDING','DETAIL','AGE','DIAG']], how='left', left_on='filename', right_on='RECORDING')
     merge_left.drop(['RECORDING'],axis=1,inplace=True)

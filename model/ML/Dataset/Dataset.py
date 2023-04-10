@@ -22,16 +22,19 @@ def statistical_feature(feature_vec):
     std = np.std(feature_vec) 
     maxv = np.amax(feature_vec) 
     minv = np.amin(feature_vec) 
-    median = np.median(feature_vec)
     skew = scipy.stats.skew(feature_vec)
     kurt = scipy.stats.kurtosis(feature_vec)
     q1 = np.quantile(feature_vec, 0.25)
+    median = np.median(feature_vec)
     q3 = np.quantile(feature_vec, 0.75)
     mode = scipy.stats.mode(feature_vec)[0][0]
     iqr = scipy.stats.iqr(feature_vec)
     
     return [mean, std, maxv, minv, median, skew, kurt, q1, q3, mode, iqr]
 ####
+
+
+
 
 
 
@@ -77,6 +80,36 @@ def load_audio_dataset_perturbation(audio_files,mel_run_config,sr=16000):
     return np.array(X)
 
 
+
+def load_audio_dataset_conventional(audio_files,mel_run_config,sr=16000):
+    """
+    논문 Towards robust voice pathology detection
+
+    pitch,
+    jitter,
+    shimmer,
+    harmonic-to-noise ratio,
+    detrended fluctuation analysis parameters,
+    glottis quotients (open, closed),
+    glottal-to-noise excitation ratio,
+    Teager–Kaiser energy operator,
+    modulation energy, 
+    and normalized noise energy.    
+
+    참조.
+    https://inspirit941.tistory.com/250
+
+    """
+    return
+
+
+def load_audio_dataset_smile(audio_files,mel_run_config,sr=16000):
+    #feature extraction from smile
+    return
+
+
+
+
 #데이터 로더 제작 함수
 def load_data(
     X_train_list,
@@ -84,9 +117,7 @@ def load_data(
     Y_train_list,
     Y_valid_list,
     feature,
-    spectro_run_config,
     mel_run_config,
-    mfcc_run_config,
     is_normalize,
     norm_mean_list,
     norm_std_list,
@@ -97,6 +128,7 @@ def load_data(
     augment_params,
     num_workers=0
     ):
+    print("load_data")
     
     if feature=='perturbation':
         X_train_list=list_to_path(X_train_list,dataset)
@@ -116,7 +148,7 @@ def load_data(
     return X_train_list,Y_train_list,X_valid_list,Y_valid_list
 
 
-def load_test_data(X_test,Y_test,feature,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,scaler_list,model,dataset,num_workers=0):
+def load_test_data(X_test,Y_test,feature,mel_run_config,is_normalize,norm_mean_list,norm_std_list,scaler_list,model,dataset,num_workers=0):
     if feature=='perturbation':
         X_test=list_to_path(X_test,dataset)
         

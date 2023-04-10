@@ -176,11 +176,11 @@ def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file
     answer_paper=pd.read_excel(speaker_file_path_abs)
     answer_paper['RECORDING']=answer_paper['RECORDING'].values.astype(str)
     #answer_paper[['RECORDING','DETAIL','AGE']]
-    merge_left = pd.merge(fold_excel_all,answer_paper[['RECORDING','DETAIL','AGE']], how='left', left_on='filename', right_on='RECORDING')
+    merge_left = pd.merge(fold_excel_all,answer_paper[['RECORDING','DETAIL','AGE','DIAG']], how='left', left_on='filename', right_on='RECORDING')
     merge_left.drop(['RECORDING'],axis=1,inplace=True)
     merge_left['result']=merge_left['prediction']==merge_left['answer']
     merge_left['filename']=merge_left['filename'].values.astype(int)
-    merge_left = merge_left[['filename','fold','AGE','DETAIL','prediction','answer','prob','result']]
+    merge_left = merge_left[['filename','fold','AGE','DETAIL','prediction','answer','prob','DIAG','result']]
 
     data_subset = 'organics'
     if args.data_subset==0:
