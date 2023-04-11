@@ -17,6 +17,11 @@ def list_to_path(list,dataset):
         path_list.append(str(i)+"-"+dataset+".wav")
     return path_list
 
+def load_data(path):
+    with open(path, 'rb') as f:
+        data = pickle.load(f)
+    return data
+
 
 def statistical_feature(feature_vec):
     mean = np.mean(feature_vec)
@@ -94,7 +99,8 @@ def load_audio_dataset_perturbation(audio_files,mel_run_config,sr=16000):
 
         # Concatenate all features into a single feature vector
         features = np.concatenate([statistical_feature(f0), [jitter], [shimmer], 
-                                   statistical_feature(hnr),statistical_feature(mfcc.flatten()), statistical_feature(mfcc_delta.flatten()), statistical_feature(mfcc_delta2.flatten()) ], axis=0)
+                                   statistical_feature(hnr),
+                                   statistical_feature(mfcc.flatten()), statistical_feature(mfcc_delta.flatten()), statistical_feature(mfcc_delta2.flatten()) ], axis=0)
 
         # Append feature vector and label to X and y, respectively
         #print(features.shape)
@@ -127,8 +133,27 @@ def load_audio_dataset_conventional(audio_files,mel_run_config,sr=16000):
 
 
 def load_audio_dataset_smile(audio_files,mel_run_config,sr=16000):
-    #feature extraction from smile
-    return
+    """
+    논문 
+
+    feature extraction from smile
+
+
+    참조.
+
+    """    
+    X = []
+
+
+    smile_dict=load_data("../../../voice_data/all_data_ver2/smile_16000_all.pickle")    
+
+    # Loop through each audio file
+    for audio_path in tqdm(audio_files):
+        # Load audio file
+        smile_sample = smile_dict[audio_path]
+        X.append(smile_sample)
+
+    return np.array(X)
 
 
 
@@ -159,6 +184,12 @@ def load_data(
         
         X_train_list = load_audio_dataset_perturbation(X_train_list,mel_run_config,sr=16000)
         X_valid_list = load_audio_dataset_perturbation(X_valid_list,mel_run_config,sr=16000)
+    elif feature=='smile':
+        X_train_list=list_to_path(X_train_list,dataset)
+        X_valid_list=list_to_path(X_valid_list,dataset)
+        
+        X_train_list = load_audio_dataset_smile(X_train_list,mel_run_config,sr=16000)
+        X_valid_list = load_audio_dataset_smile(X_valid_list,mel_run_config,sr=16000)        
     else:
         #baseline
         X_train_list=list_to_path(X_train_list,dataset)
@@ -176,7 +207,10 @@ def load_test_data(X_test,Y_test,feature,mel_run_config,is_normalize,norm_mean_l
         X_test=list_to_path(X_test,dataset)
         
         X_test = load_audio_dataset_perturbation(X_test,mel_run_config,sr=16000)
-
+    elif feature=='perturbation':
+        X_test=list_to_path(X_test,dataset)
+        
+        X_test = load_audio_dataset_smile(X_test,mel_run_config,sr=16000)
     else:
         #baseline
         X_test=list_to_path(X_test,dataset)

@@ -49,11 +49,13 @@ class Custom_svm():
         
         return train_score,val_score
     
-    def inference(self,test_x,test_y):
+    def inference(self,test_x,test_y,save_result=False):
         test_score = self.model.score(test_x,test_y)
-        y_pred = self.model.predict(test_x) # 예측치     
-        y_probs = self.model.predict_proba(test_x)
-        return test_score,test_y,y_pred,y_probs
+        y_pred = self.model.predict(test_x) # 예측치
+        if save_result:
+            y_probs = self.model.predict_proba(test_x)
+            return test_score,test_y,y_pred,y_probs
+        return test_score, test_y, y_pred
 
 
 

@@ -322,7 +322,10 @@ def main():
 
         model.load_checkpoint(check_path)   
 
-        predictions,answers = test_evaluate(model,args.model,test_x_data,test_y_data,X_test,save_result=False)
+        if args.save_result:
+            predictions,answers,test_outputs,test_files = test_evaluate(model,args.model,test_x_data,test_y_data,X_test,save_result=True)
+        else:
+            predictions,answers = test_evaluate(model,args.model,test_x_data,test_y_data,X_test,save_result=False)
         
         cf = confusion_matrix(answers, predictions)
         cf_list.append(cf)
