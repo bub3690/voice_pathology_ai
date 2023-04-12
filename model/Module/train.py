@@ -178,8 +178,11 @@ def main():
     norm_mean_list = []
     norm_std_list = []
     scaler_list = []
-    
-    if args.normalize and args.model == 'wav_res_smile':
+
+    #scaler 수정해야함.
+
+
+    if args.normalize and (args.model == 'wav_res_smile' or args.model == 'wav_vgg16_smile'):
         print("normalize 시작")
         #spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
         #mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)

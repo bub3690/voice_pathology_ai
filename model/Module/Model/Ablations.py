@@ -610,8 +610,6 @@ def res18time(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
 
 
 
-
-
 ## alexnet
 def alexnet(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
     """Constructs a ResNet-18 model.
