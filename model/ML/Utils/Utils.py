@@ -112,20 +112,14 @@ def get_smile(path,config,num_workers=0):
         return handcrafted
 
 
-def get_scaler(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,mfcc_run_config,num_workers=0):
-    data_list = []
-    if mode == 'smile':
-        #scaler = PowerTransformer(method='yeo-johnson',standardize=True)
-        scaler = QuantileTransformer(output_distribution='uniform')
-        # scaler = make_pipeline(
-        #     MinMaxScaler(),
-        #     PowerTransformer(standardize=True),
-        # )
-
-        for x in tqdm(X_path_list):
-            data_list.append(get_smile(x,mfcc_run_config,num_workers=num_workers).to_numpy().squeeze())
-        data_list = np.array(data_list)
-        scaler.fit(data_list)
+def get_QuantileTransformer_scaler(X_data_list):
+    #scaler = PowerTransformer(method='yeo-johnson',standardize=True)
+    scaler = QuantileTransformer(output_distribution='uniform')
+    # scaler = make_pipeline(
+    #     MinMaxScaler(),
+    #     PowerTransformer(standardize=True),
+    # )
+    scaler.fit(X_data_list)
     return scaler
         
 

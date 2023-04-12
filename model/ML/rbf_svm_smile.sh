@@ -1,0 +1,5 @@
+python train_ml.py --wandb True --model radial_svm --name radial_svm --feature smile --dataset phrase --tag radial_svm phrase set100 --seed 1004 --data-probs 0 --descript "phrase radial_svm speaker independent"
+python train_ml.py --wandb True --model radial_svm --name radial_svm --feature smile --dataset phrase --tag radial_svm phrase set100 --seed 1005 --data-probs 0 --descript "phrase radial_svm speaker independent"
+python train_ml.py --wandb True --model radial_svm --name radial_svm --feature smile --dataset phrase --tag radial_svm phrase set100 --seed 1006 --data-probs 0 --descript "phrase radial_svm speaker independent"
+python train_ml.py --wandb True --model radial_svm --name radial_svm --feature smile --dataset phrase --tag radial_svm phrase set100 --seed 1007 --data-probs 0 --descript "phrase radial_svm speaker independent"
+python train_ml.py --wandb True --model radial_svm --name radial_svm --feature smile --dataset phrase --tag radial_svm phrase set100 --seed 1008 --data-probs 0 --descript "phrase radial_svm speaker independent"  

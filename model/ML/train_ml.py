@@ -17,12 +17,11 @@ from glob import glob
 import sys
 import argparse
 
-from Utils.pytorchtools import EarlyStopping # 상위 폴더에 추가된 모듈.
 from Dataset.cv_spliter import cv_spliter #데이터 분할 모듈
 from Dataset.Data import make_data # phrase 데이터를 담아둔다.
 from Dataset.Dataset import load_data,load_test_data
 from Model.Models import model_initialize
-from Utils.Utils import get_mean_std,get_scaler,save_result
+from Utils.Utils import save_result
 from Trainer.Trainer import test_evaluate, train
 
 
@@ -68,7 +67,7 @@ def main():
     parser.add_argument('--model',type=str, default='baseline',
                         help='list : [linear_svm,polynomial_svm,rbf_svm]')
     parser.add_argument('--feature',type=str, default='baseline',
-                            help='list : [perturbation,]')    
+                            help='list : [perturbation,smile]')    
     parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
     parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
     parser.add_argument('--dataset',type=str, default='phrase',
@@ -109,7 +108,7 @@ def main():
 
     
     if args.data_subset==0:
-        speaker_file_path = "../../voice_data/all_data.xlsx" # all data. 나중에 확인해서 egg 없는것은 제외할 예정.
+        speaker_file_path = "../../voice_data/all_data_ver2.xlsx" # all data. 나중에 확인해서 egg 없는것은 제외할 예정.
     elif args.data_subset==1:
         speaker_file_path = "../../voice_data/only_organics_healthy_available_ver2.xlsx" # 퓨전셋에 맞게 01.10 수정
     
@@ -156,22 +155,6 @@ def main():
         mel_run_config = json.load(f)[str(args.seed)] 
     with open('./Params/mfcc.json') as f:
         mfcc_run_config = json.load(f)[str(args.seed)] 
-
-
-    ## find mean, std
-    ## log_spectro, mel_spectro, mfcc 순으로 담긴다.
-    norm_mean_list = []
-    norm_std_list = []
-    scaler_list = []
-    
-    if args.normalize and args.model == 'wav_res_smile':
-        #스마일 뿐만 아니라 handcrafted 이면 모두 normalize 하도록 고쳐야함.
-        print("normalize 시작")
-        #spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
-        #mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
-        #mfcc_mean,mfcc_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'mfcc',spectro_run_config,mel_run_config,mfcc_run_config)
-        smile_scaler = get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'smile',spectro_run_config,mel_run_config,mfcc_run_config,num_workers=args.workers)
-        scaler_list = [smile_scaler,]
     
 
     ##### 10. 학습 및 평가.
@@ -187,25 +170,24 @@ def main():
     elif args.data_subset==1:
         data_subset = 'organics'
 
-
+    print("feature : ",args.feature,"model",args.model,"dataset",args.dataset,"normalize",args.normalize,"seed",args.seed,"data_subset",data_subset,"augment",augment_kind)
+    
     if args.inference==False:
         for data_ind in range(1,6):
 
             ## 0407 trainer까지 작성했음. 여기부터 작성 필요.
 
-            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
+            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_feature_'+args.feature+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
             print(check_path)
             train_x_data,train_y_data, valid_x_data,valid_y_data = load_data(
                                                         X_train_list[data_ind-1],
                                                         X_valid_list[data_ind-1],
                                                         Y_train_list[data_ind-1],
                                                         Y_valid_list[data_ind-1],
+                                                        data_ind-1,#fold
                                                         args.feature,
                                                         mel_run_config,
                                                         args.normalize,
-                                                        norm_mean_list,
-                                                        norm_std_list,
-                                                        scaler_list,
                                                         args.model,
                                                         args.dataset,
                                                         args.augment,
@@ -255,18 +237,16 @@ def main():
             # initialize 없이 바로할지.
             model=model_initialize(args.model,mel_run_config,save_result=args.save_result)
             
-            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
+            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_feature_'+args.feature+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
             
             model.load_checkpoint(check_path)            
             valid_x_data,valid_y_data = load_test_data(
                                             X_valid_list[data_ind-1],
                                             Y_valid_list[data_ind-1],
+                                            data_ind-1,#fold
                                             args.feature,
                                             mel_run_config,
                                             args.normalize,
-                                            norm_mean_list,
-                                            norm_std_list,
-                                            scaler_list,
                                             args.model,
                                             args.dataset,
                                             num_workers=args.workers
@@ -295,12 +275,10 @@ def main():
     test_x_data,test_y_data = load_test_data(
                                             X_test,
                                             Y_test,
+                                            data_ind-1,#fold
                                             args.feature,
                                             mel_run_config,
                                             args.normalize,
-                                            norm_mean_list,
-                                            norm_std_list,
-                                            scaler_list,
                                             args.model,
                                             args.dataset,
                                             num_workers=args.workers
@@ -317,7 +295,7 @@ def main():
 
     for data_ind in range(1,6):
         model=model_initialize(args.model,mel_run_config,save_result=args.save_result)
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
+        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_feature_'+args.feature+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
 
 
         model.load_checkpoint(check_path)   

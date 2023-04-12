@@ -164,3 +164,12 @@ class FusionData():
             with open(wav_path,"rb") as fr:
                 FusionData.dict_list.append(pickle.load(fr))
         return
+    
+
+    
+class ScalerList():
+    scaler_list = []
+    def __init__(self,scaler_list):
+        ScalerList.scaler_list = scaler_list
+        return
+    

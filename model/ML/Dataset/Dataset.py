@@ -2,7 +2,8 @@ import pickle
 import numpy as np
 import librosa
 
-from .Data import PhraseData, FusionData
+from .Data import PhraseData, FusionData,ScalerList
+from Utils.Utils import get_QuantileTransformer_scaler
 import scipy
 
 import opensmile
@@ -17,7 +18,7 @@ def list_to_path(list,dataset):
         path_list.append(str(i)+"-"+dataset+".wav")
     return path_list
 
-def load_data(path):
+def load_pickle_data(path):
     with open(path, 'rb') as f:
         data = pickle.load(f)
     return data
@@ -144,16 +145,14 @@ def load_audio_dataset_smile(audio_files,mel_run_config,sr=16000):
     """    
     X = []
 
-
-    smile_dict=load_data("../../../voice_data/all_data_ver2/smile_16000_all.pickle")    
-
+    smile_dict=load_pickle_data("../../voice_data/all_data_ver2/smile_16000_all.pickle")    
     # Loop through each audio file
     for audio_path in tqdm(audio_files):
         # Load audio file
         smile_sample = smile_dict[audio_path]
         X.append(smile_sample)
 
-    return np.array(X)
+    return np.concatenate(X)
 
 
 
@@ -164,12 +163,10 @@ def load_data(
     X_valid_list,
     Y_train_list,
     Y_valid_list,
+    fold, # 몇번째 폴드인지. kfold와 normalize 때문에 이용.
     feature,
     mel_run_config,
     is_normalize,
-    norm_mean_list,
-    norm_std_list,
-    scaler_list,
     model,
     dataset,
     augment,
@@ -184,12 +181,17 @@ def load_data(
         
         X_train_list = load_audio_dataset_perturbation(X_train_list,mel_run_config,sr=16000)
         X_valid_list = load_audio_dataset_perturbation(X_valid_list,mel_run_config,sr=16000)
+
     elif feature=='smile':
         X_train_list=list_to_path(X_train_list,dataset)
         X_valid_list=list_to_path(X_valid_list,dataset)
-        
+
         X_train_list = load_audio_dataset_smile(X_train_list,mel_run_config,sr=16000)
-        X_valid_list = load_audio_dataset_smile(X_valid_list,mel_run_config,sr=16000)        
+        X_valid_list = load_audio_dataset_smile(X_valid_list,mel_run_config,sr=16000)
+
+        if is_normalize:
+            print('normalize')
+            ScalerList.scaler_list.append(get_QuantileTransformer_scaler(X_train_list))
     else:
         #baseline
         X_train_list=list_to_path(X_train_list,dataset)
@@ -198,24 +200,29 @@ def load_data(
         X_train_list = load_audio_dataset_perturbation(X_train_list,mel_run_config,sr=16000)
         X_valid_list = load_audio_dataset_perturbation(X_valid_list,mel_run_config,sr=16000)           
 
-
+    if is_normalize:
+        print('normalize')
+        X_train_list = ScalerList.scaler_list[fold].transform(X_train_list)
+        X_valid_list = ScalerList.scaler_list[fold].transform(X_valid_list)
+    
     return X_train_list,Y_train_list,X_valid_list,Y_valid_list
 
 
-def load_test_data(X_test,Y_test,feature,mel_run_config,is_normalize,norm_mean_list,norm_std_list,scaler_list,model,dataset,num_workers=0):
+def load_test_data(X_test,Y_test,fold,feature,mel_run_config,is_normalize,model,dataset,num_workers=0):
     if feature=='perturbation':
         X_test=list_to_path(X_test,dataset)
-        
         X_test = load_audio_dataset_perturbation(X_test,mel_run_config,sr=16000)
-    elif feature=='perturbation':
-        X_test=list_to_path(X_test,dataset)
-        
+    elif feature=='smile':
+        X_test=list_to_path(X_test,dataset) 
         X_test = load_audio_dataset_smile(X_test,mel_run_config,sr=16000)
     else:
         #baseline
         X_test=list_to_path(X_test,dataset)
+        X_test = load_audio_dataset_perturbation(X_test,mel_run_config,sr=16000)
+    if is_normalize:
+        print('normalize')
+        X_test = ScalerList.scaler_list[fold].transform(X_test)
         
-        X_test = load_audio_dataset_perturbation(X_test,mel_run_config,sr=16000)         
     return X_test,Y_test
 
 

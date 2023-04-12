@@ -124,7 +124,7 @@ def main():
 
     
     if args.data_subset==0:
-        speaker_file_path = "../../voice_data/all_data.xlsx" # all data. 나중에 확인해서 egg 없는것은 제외할 예정.
+        speaker_file_path = "../../voice_data/all_data_ver2.xlsx" # all data. 나중에 확인해서 egg 없는것은 제외할 예정.
     elif args.data_subset==1:
         speaker_file_path = "../../voice_data/only_organics_healthy_available_ver2.xlsx" # 퓨전셋에 맞게 01.10 수정
     
