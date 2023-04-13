@@ -22,7 +22,7 @@ import argparse
 
 from Utils.pytorchtools import EarlyStopping # 상위 폴더에 추가된 모듈.
 from Dataset.cv_spliter import cv_spliter #데이터 분할 모듈
-from Dataset.Data import make_data # phrase 데이터를 담아둔다.
+from Dataset.Data import make_data,get_opensmile,get_glottal # phrase 데이터를 담아둔다.
 from Dataset.Dataset import load_data,load_test_data
 from Model.Models import model_initialize
 from Utils.Utils import get_mean_std,get_scaler,save_result
@@ -76,6 +76,7 @@ def main():
                             wav_res_concat_allfusion,wav_res_concat_allfusion_attention,wav_res_concat_phrase_vowel,wav_res_latefusion_phrase_vowel,\
                                 wav_res_phrase_eggfusion_lstm,wav_res_phrase_eggfusion_mmtm, wav_res_smile,\
                                 wav_res_phrase_eggfusion_mmtm_bam,wav_res_phrase_eggfusion_mmtm_nonlocal]')
+    parser.add_argument('--feature',default='',nargs='+',type=str,help='list : [smile,glottal]')
     parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
     parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
     parser.add_argument('--dataset',type=str, default='phrase',
@@ -97,7 +98,6 @@ def main():
                             help='write config for wandb')
 
     args = parser.parse_args()
-
 
     if args.wandb:
         project_name = args.project_name
@@ -133,6 +133,9 @@ def main():
 
     X_train_list, X_valid_list, X_test, Y_train_list, Y_valid_list, Y_test = cv_spliter(random_state, speaker_file_path_abs, data_probs=args.data_probs)
         
+    ####
+    # normalize 계획. X_train_list를 다 뭉쳐서 set 후에, scaler 구할 예정.
+    ###
 
 
     # # 데이터로더
@@ -181,14 +184,18 @@ def main():
 
     #scaler 수정해야함.
 
+    if 'smile' in args.feature:
+        opensmile_path = "../../voice_data/all_data_ver2/smile_16000_all.pickle"
+        get_opensmile(opensmile_path)
+        if args.normalize:
+            get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'smile',spectro_run_config,mel_run_config,mfcc_run_config,num_workers=args.workers)
 
-    if args.normalize and (args.model == 'wav_res_smile' or args.model == 'wav_vgg16_smile'):
-        print("normalize 시작")
-        #spectro_mean,spectro_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'logspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)        
-        #mel_mean,mel_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0], 'melspectrogram',spectro_run_config,mel_run_config,mfcc_run_config)
-        #mfcc_mean,mfcc_std = get_mean_std(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'mfcc',spectro_run_config,mel_run_config,mfcc_run_config)
-        smile_scaler = get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'smile',spectro_run_config,mel_run_config,mfcc_run_config,num_workers=args.workers)
-        scaler_list = [smile_scaler,]
+    if 'glottal' in args.feature:
+        glottal_path = "../../voice_data/all_data_ver2/glottal_all_ver2.xlsx"
+        get_glottal(glottal_path)
+        if args.normalize:
+            get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'glottal',spectro_run_config,mel_run_config,mfcc_run_config,num_workers=args.workers)
+    
 
     # if args.normalize:
     #     print("normalize 시작")

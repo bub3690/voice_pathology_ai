@@ -9,7 +9,7 @@ import librosa
 
 
 from torchvision.models import ResNet
-from torchvision.models import ResNet18_Weights
+from torchvision.models import ResNet18_Weights,VGG16_BN_Weights
 
 import timm
 
@@ -333,15 +333,31 @@ class Resnet_wav_smile(nn.Module):
 
 class vgg_16_wav_smile(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+        
+        #GAP로 바꿔서 실험해보기.
+
         #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
         super(vgg_16_wav_smile, self).__init__()
         # if "center=True" of stft, padding = win_len / 2
 
         #self.num_ftrs = 63
         num_ftrs = 1000
-        self.res = models.vgg16_bn(pretrained=True,num_classes=num_ftrs).cuda() 
+        self.res = models.vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs).cuda() 
         #self.num_ftrs = self.model.fc.out_features
         self.num_ftrs = num_ftrs
+
+
+        # self.res.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        # self.classifier = nn.Sequential(
+        #     nn.Linear(512 * 7 * 7, 4096),
+        #     nn.ReLU(True),
+        #     nn.Dropout(p=dropout),
+        #     nn.Linear(4096, 4096),
+        #     nn.ReLU(True),
+        #     nn.Dropout(p=dropout),
+        #     nn.Linear(4096, num_classes),
+        # )
+
 
         self.smile_fc = nn.Sequential(       
                             nn.Linear(6373, 2048),
@@ -356,6 +372,7 @@ class vgg_16_wav_smile(nn.Module):
                             nn.Dropout(p=0.5)                         
                             )
         self.res.classifier = nn.Sequential(*list(self.res.classifier) + [res_fc])
+        
 
         
         self.concated_fc= nn.Sequential(

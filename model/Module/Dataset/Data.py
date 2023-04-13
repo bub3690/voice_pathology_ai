@@ -1,5 +1,6 @@
 import pickle
 import os
+import pandas as pd
 
 def make_data(dataset):
     if dataset == 'phrase':
@@ -138,6 +139,17 @@ def make_data(dataset):
     return data_instance
 
 
+def get_opensmile(opensmile_path):
+    opensmile_path_abs = os.path.abspath(opensmile_path)
+    print("데이터 로드 opensmile")
+    data_instance = OpensmileData(opensmile_path_abs) #class에 데이터를 담아준다.
+    return data_instance
+
+def get_glottal(glottal_path):
+    glottal_path_abs = os.path.abspath(glottal_path)
+    print("데이터 로드 glottal")
+    data_instance = GlottalData(glottal_path_abs) #class에 데이터를 담아준다.
+    return data_instance
 
 
 class PhraseData():
@@ -163,4 +175,28 @@ class FusionData():
         for wav_path in path_list:
             with open(wav_path,"rb") as fr:
                 FusionData.dict_list.append(pickle.load(fr))
+        return
+
+ 
+
+class OpensmileData():
+    
+    opensmile_dict = dict()
+    scaler_list = []
+
+    def __init__(self,opensmile_path):
+        #load
+        with open(opensmile_path,"rb") as fr:
+            OpensmileData.opensmile_dict = pickle.load(fr)
+        return
+    
+class GlottalData():
+
+    glottal_table = None
+    scaler_list = []
+
+    def __init__(self,glottal_path):
+        #load
+
+        GlottalData.glottal_table = pd.read_excel(glottal_path)
         return

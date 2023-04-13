@@ -5,7 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import librosa
 
-from .Data import PhraseData, FusionData
+from .Data import PhraseData, FusionData, OpensmileData, GlottalData
 import torchaudio.transforms as T
 from torch.nn.utils.rnn import pad_sequence
 
@@ -610,12 +610,6 @@ class svd_dataset_wav_smile(Dataset):
 
         self.dataset=dataset
 
-        self.smile = opensmile.Smile(
-            feature_set=opensmile.FeatureSet.ComParE_2016,
-            feature_level=opensmile.FeatureLevel.Functionals,
-            num_workers=8,
-            multiprocessing=True
-        )
         self.smile_dict=load_pickle_data("../../voice_data/all_data_ver2/smile_16000_all.pickle")
         #noramlize 관련
 
@@ -623,8 +617,7 @@ class svd_dataset_wav_smile(Dataset):
             self.norm_mean_list = norm_mean_list
             self.norm_std_list = norm_std_list
 
-        if scaler_list != None and len(scaler_list)>0:
-            self.scaler_list = scaler_list
+        self.scaler_list = OpensmileData.scaler_list
 
         #augmentation들
         # self.crop = None
@@ -703,7 +696,7 @@ class svd_dataset_wav_smile(Dataset):
         
 
         
-        return sig,handcrafted, self.classes.index(self.label[idx]), str(self.path_list[idx]), origin_length
+        return sig, handcrafted, self.classes.index(self.label[idx]), str(self.path_list[idx]), origin_length
 
 
 class svd_dataset_wav_eggfusion(Dataset):

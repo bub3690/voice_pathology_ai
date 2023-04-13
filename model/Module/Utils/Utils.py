@@ -1,5 +1,5 @@
 import librosa
-from Dataset.Data import PhraseData
+from Dataset.Data import PhraseData,OpensmileData,GlottalData
 import pandas as pd
 import numpy as np
 import torch
@@ -95,37 +95,34 @@ def get_mfcc(path,config):
         return MFCCs
 
 def get_smile(path,config,num_workers=0):
-        sig = PhraseData.phrase_dict[ str(path)+'-phrase.wav'] 
-        #sig = preemphasis(sig)
-        smile = opensmile.Smile(
-            feature_set=opensmile.FeatureSet.ComParE_2016,
-            feature_level=opensmile.FeatureLevel.Functionals,
-            num_workers=num_workers,
-            multiprocessing=True
-        )
+        smile_data = OpensmileData.opensmile_dict[ str(path)+'-phrase.wav'] 
+        return smile_data
 
-        handcrafted = smile.process_signal(
-                        sig,
-                        config["sr"]
-                    )        
-
-        return handcrafted
+def get_glottal(data_list,config):
+        glottal_data = GlottalData.glottal_table.loc[GlottalData.glottal_table['RECORDING'].isin( data_list )].iloc[:,1:]
+        return glottal_data
 
 
 def get_scaler(X_path_list,Y_path_list,mode,spectro_run_config,mel_run_config,mfcc_run_config,num_workers=0):
     data_list = []
+    X_path_list = list(set(X_path_list))
     if mode == 'smile':
         #scaler = PowerTransformer(method='yeo-johnson',standardize=True)
         scaler = QuantileTransformer(output_distribution='uniform')
-        # scaler = make_pipeline(
-        #     MinMaxScaler(),
-        #     PowerTransformer(standardize=True),
-        # )
-
         for x in tqdm(X_path_list):
             data_list.append(get_smile(x,mfcc_run_config,num_workers=num_workers).to_numpy().squeeze())
         data_list = np.array(data_list)
         scaler.fit(data_list)
+        OpensmileData.scaler_list.append(scaler)
+    elif mode == 'glottal':
+        # glottal feature는 적절한 scaler를  찾아야한다.
+
+        scaler = QuantileTransformer(output_distribution='uniform')
+        data_list.append(get_glottal(X_path_list,mfcc_run_config).to_numpy())
+        data_list = np.array(data_list)
+        scaler.fit(data_list)
+        GlottalData.scaler_list.append(scaler)
+    
     return scaler
         
 
