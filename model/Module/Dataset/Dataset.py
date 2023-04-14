@@ -610,7 +610,7 @@ class svd_dataset_wav_smile(Dataset):
 
         self.dataset=dataset
 
-        self.smile_dict=load_pickle_data("../../voice_data/all_data_ver2/smile_16000_all.pickle")
+        self.smile_dict=OpensmileData.opensmile_dict
         #noramlize 관련
 
         if norm_mean_list != None and len(norm_mean_list) >0:
@@ -655,17 +655,7 @@ class svd_dataset_wav_smile(Dataset):
             origin_length = self.mel_params["sr"]*3
         
         origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
-        #print(sig.shape)
-        # sig = np.tile(sig,(2,))
-
-        ### handcrafted feature (smile)
-        # padding 전에 계산.
         
-        # handcrafted = self.smile.process_signal(
-        #                 sig,
-        #                 self.mel_params["sr"]
-        #             )
-        # handcrafted = handcrafted
         handcrafted = self.smile_dict[str(self.path_list[idx])+'-'+self.dataset+'.wav']
         #####
 
@@ -680,8 +670,6 @@ class svd_dataset_wav_smile(Dataset):
         ###signal norm
         sig = (sig-sig.mean())/sig.std()
         ###
-
-
 
 
         sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
