@@ -670,7 +670,7 @@ class svd_dataset_wav_smile(Dataset):
         #####
 
         #handcrafted normalize
-        if self.scaler_list != None:
+        if len(self.scaler_list) != 0:
             handcrafted = self.scaler_list[0].transform(handcrafted.to_numpy())
 
         length = self.mel_params["sr"]*3 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
@@ -687,6 +687,7 @@ class svd_dataset_wav_smile(Dataset):
         sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
         sig=sig.unsqueeze(0)
         
+        #여기 뭐지.
         if self.scaler_list == None or len(self.scaler_list)==0:
             handcrafted = torch.from_numpy(handcrafted.to_numpy()).type(torch.float32).squeeze(0)
         else:
@@ -1806,6 +1807,38 @@ def load_data(
                                                 num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 )
+    elif model=='wav_mlp_smile':
+        train_loader = DataLoader(dataset = svd_dataset_wav_smile(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    scaler_list=scaler_list,                                               
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                num_workers=num_workers
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav_smile(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    scaler_list=scaler_list,                                            
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                num_workers=num_workers
+                                                #worker_init_fn=seed_worker
+                                                )        
     elif model=='wav_res_phrase_eggfusion_lstm':
         train_loader = DataLoader(dataset = svd_dataset_wav_eggfusion(
                                                     X_train_list,
@@ -2348,6 +2381,21 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
+    elif model=='wav_mlp_smile':
+        test_loader = DataLoader(dataset = svd_dataset_wav_smile(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    scaler_list=scaler_list,                                          
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                num_workers=num_workers
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.        
     elif model=='wav_res_phrase_eggfusion_lstm':
         test_loader = DataLoader(dataset = svd_dataset_wav_eggfusion(
                                                     X_test,

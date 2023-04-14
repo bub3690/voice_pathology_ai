@@ -331,6 +331,49 @@ class Resnet_wav_smile(nn.Module):
         return out
 
 
+class mlp_wav_smile(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+        #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
+        super(mlp_wav_smile, self).__init__()
+        # if "center=True" of stft, padding = win_len / 2
+
+        self.smile_fc = nn.Sequential(  
+                            nn.Linear(6373, 2048),
+                            nn.BatchNorm1d(2048),
+                            nn.ReLU(),
+                            nn.Linear(2048, 2048),
+                            nn.BatchNorm1d(2048),
+                            nn.ReLU(),
+                            nn.Linear(2048, 2048),
+                            nn.BatchNorm1d(2048),
+                            nn.ReLU(),
+                            nn.Linear(2048, 1024),
+                            nn.BatchNorm1d(1024),
+                            nn.ReLU(),
+                            nn.Linear(1024, 512),
+                            nn.BatchNorm1d(512),
+                            nn.ReLU(),                                                                       
+                            nn.Linear(512, 50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Linear(50, 2)
+                            )
+
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+    
+    def take_log(feature):
+        amp2db = torchaudio.transforms.AmplitudeToDB(stype="amplitude")
+        amp2db.amin=1e-5
+        return amp2db(feature).clamp(min=-50,max=80)
+    
+
+    def forward(self, x,handcrafted,augment=False):
+        smile_out = self.smile_fc(handcrafted)
+
+        return smile_out
+
 class vgg_16_wav_smile(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
         
@@ -2427,7 +2470,9 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()   
     elif model_name=='wav_vgg16_smile':
         model = vgg_16_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
-        #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()   
+        #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_mlp_smile':
+        model = mlp_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()   
     elif model_name=='wav_res_phrase_eggfusion_lstm':
         model = ResLayer_wav_fusion_lstm(mel_bins=mel_run_config['n_mels'],
                                          win_len=mel_run_config['win_length'],
