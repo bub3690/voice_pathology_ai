@@ -527,6 +527,180 @@ class vgg_16_wav_smile(nn.Module):
         return out
 
 
+
+class vgg_16_wav_smile_reslayer(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+        
+        #GAP로 바꿔서 실험해보기.
+
+        #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
+        super(vgg_16_wav_smile_reslayer, self).__init__()
+        # if "center=True" of stft, padding = win_len / 2
+
+        #self.num_ftrs = 63
+        num_ftrs = 1000
+        self.res = models.vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs)
+        #self.num_ftrs = self.model.fc.out_features
+        self.num_ftrs = num_ftrs
+
+        self.layer1=self.res.features[:6]
+        self.layer1_maxpool=self.res.features[6]
+        self.layer1_downsample = nn.Conv2d(64, 128, kernel_size=(1, 1), bias=False)
+
+        #identity = nn.Identity()
+        #residual = identity(layer1_maxpool)
+
+        self.layer2=self.res.features[7:13]
+
+        self.layer2_maxpool=self.res.features[13] 
+        self.layer2_downsample = nn.Conv2d(128, 256, kernel_size=(1, 1), bias=False)
+
+
+        self.layer3=self.res.features[14:23]
+        self.layer3_maxpool=self.res.features[23] 
+        self.layer3_downsample = nn.Conv2d(256, 512, kernel_size=(1, 1), bias=False)
+
+        self.layer4=self.res.features[24:33]
+        self.layer4_maxpool=self.res.features[33]
+        self.layer4_downsample = nn.Conv2d(512, 512, kernel_size=(1, 1), bias=False)
+
+        self.layer5=self.res.features[34:43]
+        self.layer5_maxpool=self.res.features[43]
+
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+
+
+
+        self.smile_fc = nn.Sequential(       
+                            nn.Linear(6373, 2048),
+                            nn.BatchNorm1d(2048),
+                            nn.ReLU(),
+                            nn.Linear(2048, 512)
+                            )
+        res_fc = nn.Sequential(       
+            nn.Linear(self.num_ftrs, 512),
+                            nn.BatchNorm1d(512),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5)                         
+                            )
+        self.res_classifier = nn.Sequential(*list(self.res.classifier) + [res_fc])
+        
+
+        
+        self.concated_fc= nn.Sequential(
+            nn.Linear(512*2,128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(128,64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(64,2)
+        )
+
+
+        self.power_to_db = T.AmplitudeToDB(stype="power", top_db=80)
+
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+
+        stretch_factor=0.8
+        self.spec_aug = torch.nn.Sequential(
+            #T.TimeStretch(stretch_factor, fixed_rate=True),
+            T.FrequencyMasking(freq_mask_param=80),
+            T.TimeMasking(time_mask_param=40),
+        )
+
+    #@classmethod
+    def sample_min_max(batch):
+        batch_size,height,width = batch.size(0),batch.size(1),batch.size(2)
+        batch = batch.contiguous().view(batch.size(0), -1)
+        batch -= batch.min(1, keepdim=True)[0]
+        batch /= batch.max(1, keepdim=True)[0]
+        batch = batch.view(batch_size, height, width)
+        return batch
+
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+    
+    def take_log(feature):
+        amp2db = torchaudio.transforms.AmplitudeToDB(stype="amplitude")
+        amp2db.amin=1e-5
+        return amp2db(feature).clamp(min=-50,max=80)
+    
+
+    def forward(self, x,handcrafted,augment=False):
+        #spec = self.spec(x)
+        #mel = self.mel_spectrogram(x)
+
+        mel = self.mel_scale(x)
+        
+        mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
+        mel = torch.squeeze(mel,dim=1)        
+        #mel = (mel-mel.min())/(mel.max()-mel.min())
+        #mel = Resnet_wav.take_log(mel)
+        
+        mel = Resnet_wav.batch_min_max(mel)
+
+        out = torch.stack([mel,mel,mel],axis=1)
+        #print(out.size())
+
+        out=self.layer1(out)
+        out=self.layer1_maxpool(out)
+        residual = out
+        
+        out=self.layer2(out)
+        residual = self.layer1_downsample(residual)
+        out = out + residual
+        out=self.layer2_maxpool(out)
+        residual = out
+
+        out=self.layer3(out)
+        residual = self.layer2_downsample(residual)
+        out = out + residual
+        out=self.layer3_maxpool(out)
+        residual = out
+
+        out=self.layer4(out)
+        residual = self.layer3_downsample(residual)
+        out = out + residual
+        out=self.layer4_maxpool(out)
+        residual = out
+
+        out=self.layer5(out)
+        residual = self.layer4_downsample(residual)
+        out = out + residual
+        out=self.layer5_maxpool(out)
+        out=self.avgpool(out)
+
+        out = out.view(out.size(0), -1)
+        out = self.res_classifier(out)
+
+        smile_out = self.smile_fc(handcrafted)
+
+        out = torch.concat([out,smile_out],axis=1)
+        out = self.concated_fc(out)
+        return out
+
+
+
+
+
 class Resnet18_custom(ResNet):
     def __init__(self,):
         super(Resnet18_custom, self).__init__(BasicBlock, [2, 2, 2, 2])
@@ -1136,8 +1310,8 @@ class Resnet_wav_logspectro(nn.Module):
 class ResLayer_wav_fusion_lstm(nn.Module):
     def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(ResLayer_wav_fusion_lstm, self).__init__()
-        self.wav_model = models.resnet18(pretrained=True).cuda() 
-        self.egg_model = models.resnet18(pretrained=True).cuda() 
+        self.wav_model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
+        self.egg_model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
         self.num_ftrs = self.wav_model.fc.out_features
         hidden_size = 256
         #self.tsne = tsne
@@ -1824,9 +1998,9 @@ class Resnet_wav_latefusion(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(Resnet_wav_latefusion, self).__init__()
 
-        self.res_h = models.resnet18(pretrained=True).cuda()
-        self.res_l = models.resnet18(pretrained=True).cuda()
-        self.res_n = models.resnet18(pretrained=True).cuda()
+        self.res_h = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_l = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_n = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
         #self.num_ftrs = self.model.fc.out_features
 
         self.num_ftrs = self.res_h.fc.out_features
@@ -1971,10 +2145,10 @@ class Resnet_wav_latefusion_all(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(Resnet_wav_latefusion_all, self).__init__()
 
-        self.res_phrase = models.resnet18(pretrained=True).cuda()
-        self.res_a = models.resnet18(pretrained=True).cuda()
-        self.res_i = models.resnet18(pretrained=True).cuda()
-        self.res_u = models.resnet18(pretrained=True).cuda()
+        self.res_phrase = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_a = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_i = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_u = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
         #self.num_ftrs = self.model.fc.out_features
 
         self.num_ftrs = self.res_phrase.fc.out_features
@@ -2058,10 +2232,10 @@ class Resnet_wav_latefusion_all_testing(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(Resnet_wav_latefusion_all_testing, self).__init__()
 
-        self.res_phrase = models.resnet18(pretrained=True).cuda()
-        self.res_a = models.resnet18(pretrained=True).cuda()
-        self.res_i = models.resnet18(pretrained=True).cuda()
-        self.res_u = models.resnet18(pretrained=True).cuda()
+        self.res_phrase = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_a = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_i = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_u = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
         #self.num_ftrs = self.model.fc.out_features
 
         self.num_ftrs = self.res_phrase.fc.out_features
@@ -2149,10 +2323,10 @@ class Resnet_wav_latefusion_all_attention(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(Resnet_wav_latefusion_all_attention, self).__init__()
 
-        self.res_phrase = models.resnet18(pretrained=True).cuda()
-        self.res_a = models.resnet18(pretrained=True).cuda()
-        self.res_i = models.resnet18(pretrained=True).cuda()
-        self.res_u = models.resnet18(pretrained=True).cuda()
+        self.res_phrase = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_a = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_i = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_u = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
         #self.num_ftrs = self.model.fc.out_features
 
         self.num_ftrs = self.res_phrase.fc.out_features
@@ -2253,10 +2427,10 @@ class Resnet_wav_latefusion_all_attention(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         super(Resnet_wav_latefusion_all_attention, self).__init__()
 
-        self.res_phrase = models.resnet18(pretrained=True).cuda()
-        self.res_a = models.resnet18(pretrained=True).cuda()
-        self.res_i = models.resnet18(pretrained=True).cuda()
-        self.res_u = models.resnet18(pretrained=True).cuda()
+        self.res_phrase = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_a = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_i = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        self.res_u = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
         #self.num_ftrs = self.model.fc.out_features
 
         self.num_ftrs = self.res_phrase.fc.out_features
@@ -2407,7 +2581,7 @@ class MSF(nn.Module):
     def __init__(self,n_mfcc):
         super(MSF, self).__init__()
         self.n_mfcc = n_mfcc-1
-        self.model = models.resnet18(pretrained=True).cuda() 
+        self.model = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda() 
         self.num_ftrs = self.model.fc.out_features
         
         
@@ -2469,7 +2643,7 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = Resnet_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()   
     elif model_name=='wav_vgg16_smile':
-        model = vgg_16_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = vgg_16_wav_smile_reslayer(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name=='wav_mlp_smile':
         model = mlp_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()   

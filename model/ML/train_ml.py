@@ -67,7 +67,7 @@ def main():
     parser.add_argument('--model',type=str, default='baseline',
                         help='list : [linear_svm,polynomial_svm,rbf_svm]')
     parser.add_argument('--feature',type=str, default='baseline',
-                            help='list : [perturbation,smile]')    
+                            help='list : [perturbation,smile,smile_glottal]')    
     parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
     parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
     parser.add_argument('--dataset',type=str, default='phrase',
@@ -174,8 +174,6 @@ def main():
     
     if args.inference==False:
         for data_ind in range(1,6):
-
-            ## 0407 trainer까지 작성했음. 여기부터 작성 필요.
 
             check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_feature_'+args.feature+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pkl'
             print(check_path)

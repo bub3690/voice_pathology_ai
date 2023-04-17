@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import librosa
+import pandas as pd
 
 from .Data import PhraseData, FusionData,ScalerList
 from Utils.Utils import get_QuantileTransformer_scaler
@@ -137,6 +138,7 @@ def load_audio_dataset_smile(audio_files,mel_run_config,sr=16000):
     """
     논문 
 
+
     feature extraction from smile
 
 
@@ -154,6 +156,34 @@ def load_audio_dataset_smile(audio_files,mel_run_config,sr=16000):
 
     return np.concatenate(X)
 
+
+def load_audio_dataset_smile_glottal(audio_files,mel_run_config,sr=16000):
+    """
+    논문 
+
+
+    feature extraction from smile and glottal source excitation 
+
+
+    참조.
+
+    """    
+    X = []
+
+    smile_dict=load_pickle_data("../../voice_data/all_data_ver2/smile_16000_all.pickle")
+    glottal_table=pd.read_excel("../../voice_data/all_data_ver2/glottal_all_ver2.xlsx")
+
+    # Loop through each audio file
+    for audio_path in tqdm(audio_files):
+        # Load audio file
+        smile_sample = smile_dict[audio_path].values
+        audio_sample_num=int(audio_path.split("-")[0])
+        glottal_sample=glottal_table[glottal_table['RECORDING']==audio_sample_num].values[:,1:]
+        smile_sample=np.concatenate([smile_sample,glottal_sample],axis=1)
+        
+        X.append(smile_sample)
+
+    return np.concatenate(X)
 
 
 
@@ -192,6 +222,16 @@ def load_data(
         if is_normalize:
             print('normalize')
             ScalerList.scaler_list.append(get_QuantileTransformer_scaler(X_train_list))
+    elif feature=='smile_glottal':
+        X_train_list=list_to_path(X_train_list,dataset)
+        X_valid_list=list_to_path(X_valid_list,dataset)
+
+        X_train_list = load_audio_dataset_smile_glottal(X_train_list,mel_run_config,sr=16000)
+        X_valid_list = load_audio_dataset_smile_glottal(X_valid_list,mel_run_config,sr=16000)
+
+        if is_normalize:
+            print('normalize')
+            ScalerList.scaler_list.append(get_QuantileTransformer_scaler(X_train_list))
     else:
         #baseline
         X_train_list=list_to_path(X_train_list,dataset)
@@ -215,6 +255,9 @@ def load_test_data(X_test,Y_test,fold,feature,mel_run_config,is_normalize,model,
     elif feature=='smile':
         X_test=list_to_path(X_test,dataset) 
         X_test = load_audio_dataset_smile(X_test,mel_run_config,sr=16000)
+    elif feature=='smile_glottal':
+        X_test=list_to_path(X_test,dataset) 
+        X_test = load_audio_dataset_smile_glottal(X_test,mel_run_config,sr=16000)        
     else:
         #baseline
         X_test=list_to_path(X_test,dataset)
