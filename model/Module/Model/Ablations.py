@@ -107,6 +107,70 @@ class Layer_wav(nn.Module):
         return out
 
 
+
+
+class Layer_diff_wav(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,LAYER=ResLayer()):
+        #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
+        super(Layer_diff_wav, self).__init__()
+        # if "center=True" of stft, padding = win_len / 2
+
+        #self.num_ftrs = 63
+
+        self.res = LAYER.cuda()
+
+
+        # self.spec = T.Spectrogram(n_fft=win_len,hop_length=hop_len,power=2)
+
+        # self.mel_scale = T.MelScale(
+        #     n_mels=mel_bins, sample_rate=16000, n_stft=win_len // 2 + 1
+        #     )
+
+        self.power_to_db = T.AmplitudeToDB(stype="power", top_db=80)
+
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+
+        stretch_factor=0.8
+        self.spec_aug = torch.nn.Sequential(
+            #T.TimeStretch(stretch_factor, fixed_rate=True),
+            T.FrequencyMasking(freq_mask_param=80),
+            T.TimeMasking(time_mask_param=40),
+        )
+
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+    
+
+    def forward(self, x,augment=False):
+        mel = self.mel_scale(x)
+        
+        mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
+        mel = torch.squeeze(mel,dim=1)        
+        mel = Layer_wav.batch_min_max(mel)
+
+        mel_delta1=torchaudio.functional.compute_deltas(mel)
+        mel_delta2=torchaudio.functional.compute_deltas(mel_delta1)
+
+
+        out = torch.stack([mel,mel_delta1,mel_delta2],axis=1)
+        #print(out.size())
+        out=self.res(out)
+        return out
 ###
 
 
@@ -372,7 +436,8 @@ def resnet34(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
                         nn.Dropout(p=0.5),
                         nn.Linear(50,2)
                         )
-    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+    
+    base_model = Layer_diff_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
 
     return base_model
 
@@ -528,7 +593,7 @@ def vgg_16(mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
                             nn.Linear(50,num_classes)
                         )
     model.classifier = nn.Sequential(*list(model.classifier) + [classifier])
-    base_model = Layer_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
+    base_model = Layer_diff_wav(mel_bins=mel_bins,win_len=win_len,n_fft=n_fft, hop_len=hop_len,LAYER=model)
 
     return base_model
 

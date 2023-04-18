@@ -1,0 +1,5 @@
+python train.py --wandb True --batch-size 16 --model vgg16 --dataset phrase --tag vgg16 wav phrase set100 delta --seed 1004 --data-probs 0 --save-result True --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model vgg16 --dataset phrase --tag vgg16 wav phrase set100 delta --seed 1005 --data-probs 0 --save-result True --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model vgg16 --dataset phrase --tag vgg16 wav phrase set100 delta --seed 1006 --data-probs 0 --save-result True --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model vgg16 --dataset phrase --tag vgg16 wav phrase set100 delta --seed 1007 --data-probs 0 --save-result True --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model vgg16 --dataset phrase --tag vgg16 wav phrase set100 delta --seed 1008 --data-probs 0 --save-result True --descript "wav phrase vgg16 speaker independent"

@@ -9,7 +9,7 @@ import librosa
 
 
 from torchvision.models import ResNet
-from torchvision.models import ResNet18_Weights,VGG16_BN_Weights
+from torchvision.models import ResNet18_Weights,VGG16_BN_Weights,AlexNet_Weights
 
 import timm
 
@@ -506,16 +506,6 @@ class vgg_16_wav_smile(nn.Module):
         #mel = Resnet_wav.take_log(mel)
         
         mel = Resnet_wav.batch_min_max(mel)
-        
-
-        #mel = self.power_to_db(mel)
-        #mel = self.spec_aug(mel)
-        #mel = (mel-torch.mean(mel))/torch.std(mel)
-        #out = out.mean(axis=2)
-        #out=self.fc(out)
-        
-        #concated_feature = torch.concat([mel,out],axis=2)
-
         out = torch.stack([mel,mel,mel],axis=1)
         #print(out.size())
         out=self.res(out)
@@ -2622,12 +2612,85 @@ class MSF(nn.Module):
         return x
 
 
+class Alexnet_wav_three_segments(nn.Module):
+    """
+    논문 : Automatic Voice Pathology monitoring using parallel  deep models for smart healthcare
+
+    three parallel deep model
+
+    """
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(Alexnet_wav_three_segments, self).__init__()
+
+        self.layer1 = models.alexnet(num_classes=1000,weights=AlexNet_Weights.IMAGENET1K_V1).cuda()
+        self.layer2 = models.alexnet(num_classes=1000,weights=AlexNet_Weights.IMAGENET1K_V1).cuda()
+        self.layer3 = models.alexnet(num_classes=1000,weights=AlexNet_Weights.IMAGENET1K_V1).cuda()
+        #self.num_ftrs = self.model.fc.out_features
+
+        self.num_ftrs = 1000
 
 
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
 
+        self.fusion_layer = nn.Sequential(
+            nn.Linear(self.num_ftrs*3, 4096),
+            nn.Linear(4096,4096),
+            nn.Linear(4096,1000),
+            nn.BatchNorm1d(1000),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(1000,128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(128,64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(64,2),
+        )
 
+    def forward(self, x_list):
+        # h, l ,n 순으로 입력
+        mel_h = self.mel_scale(x_list[:,0,...])
+        mel_h = torchaudio.functional.amplitude_to_DB(mel_h,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_h)) )
+        mel_h = torch.squeeze(mel_h,dim=1)
 
+        mel_l = self.mel_scale(x_list[:,1,...])
+        mel_l = torchaudio.functional.amplitude_to_DB(mel_l,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_l)) )
+        mel_l = torch.squeeze(mel_l,dim=1)
 
+        mel_n = self.mel_scale(x_list[:,2,...])
+        mel_n = torchaudio.functional.amplitude_to_DB(mel_n,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel_n)) )
+        mel_n = torch.squeeze(mel_n,dim=1)
+
+        out_h = torch.stack([mel_h,mel_h,mel_h],axis=1)
+        out_l = torch.stack([mel_l,mel_l,mel_l],axis=1)
+        out_n = torch.stack([mel_n,mel_n,mel_n],axis=1)
+
+        #print(out.size())
+        out_h=self.layer1(out_h)
+        out_l=self.layer2(out_l)
+        out_n=self.layer3(out_n)
+
+        out = torch.cat([out_h,out_l,out_n],axis=1)
+        out = self.fusion_layer(out)
+
+        return out
 
 
 
@@ -2645,6 +2708,8 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
     elif model_name=='wav_vgg16_smile':
         model = vgg_16_wav_smile_reslayer(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_three_segements':
+        model = Alexnet_wav_three_segments(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name=='wav_mlp_smile':
         model = mlp_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()   
     elif model_name=='wav_res_phrase_eggfusion_lstm':
