@@ -505,7 +505,7 @@ class vgg_16_wav_smile(nn.Module):
         #mel = (mel-mel.min())/(mel.max()-mel.min())
         #mel = Resnet_wav.take_log(mel)
         
-        mel = Resnet_wav.batch_min_max(mel)
+        mel = vgg_16_wav_smile.batch_min_max(mel)
         out = torch.stack([mel,mel,mel],axis=1)
         #print(out.size())
         out=self.res(out)
@@ -645,7 +645,7 @@ class vgg_16_wav_smile_reslayer(nn.Module):
         #mel = (mel-mel.min())/(mel.max()-mel.min())
         #mel = Resnet_wav.take_log(mel)
         
-        mel = Resnet_wav.batch_min_max(mel)
+        mel = vgg_16_wav_smile_reslayer.batch_min_max(mel)
 
         out = torch.stack([mel,mel,mel],axis=1)
         #print(out.size())
@@ -1363,6 +1363,91 @@ class ResLayer_wav_fusion_lstm(nn.Module):
         wav = self.wav_model(wav)
         egg = self.egg_model(egg)
         x = torch.concat([wav,egg]  ,axis=1)
+        x = x.unsqueeze(2)
+        x,(hidden_state,cell_state) = self.lstm(x)
+        hidden_state = torch.cat([hidden_state[-1], hidden_state[-2]], dim=-1)
+        # if self.tsne:
+        #     return hidden_state
+
+        x  = self.fc(hidden_state)
+        return x
+
+
+class Xception_wav_fusion_lstm(nn.Module):
+    """
+    논문 : Convergence of Artificial Intelligence and Internet of Things in Smart Healthcare: A Case Study of Voice Pathology Detection (2021)
+
+    Bixception + LSTM 
+
+    """    
+    def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(Xception_wav_fusion_lstm, self).__init__()
+
+        self.wav_model = timm.create_model('xception',num_classes=1000,pretrained=True).cuda()
+        self.egg_model = timm.create_model('xception',num_classes=1000,pretrained=True).cuda()
+        #print(model)
+        self.num_ftrs=self.wav_model.fc.in_features
+        hidden_size = 256
+        self.fc = nn.Sequential(       
+            nn.Linear(hidden_size*2, 64),
+                             nn.BatchNorm1d(64),
+                             nn.ReLU(),
+                             nn.Dropout(p=0.5),
+                             nn.Linear(64,50),
+                             nn.BatchNorm1d(50),
+                             nn.ReLU(),
+                             nn.Dropout(p=0.5),
+                             nn.Linear(50,2)
+                            )
+        hidden_size = 256
+        #self.tsne = tsne
+        self.lstm = nn.LSTM(input_size = 1,
+                            hidden_size=hidden_size,
+                            num_layers = 1,
+                            batch_first = True,
+                            bidirectional = True)
+                            
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+                
+        #self.fc = nn.Linear(2, 2),
+
+    #@classmethod   
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+
+    def forward(self, x_list, augment=False):
+        wav = self.mel_scale(x_list[:,0,...])
+        wav = wav.squeeze(1)
+        wav = torchaudio.functional.amplitude_to_DB(wav,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(wav)) ) 
+        wav = Xception_wav_fusion_lstm.batch_min_max(wav)        
+
+        egg = self.mel_scale(x_list[:,1,...])
+        egg = egg.squeeze(1)
+        egg = torchaudio.functional.amplitude_to_DB(egg,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(egg)) )
+        egg = Xception_wav_fusion_lstm.batch_min_max(egg)
+                
+
+        wav = torch.stack([wav,wav,wav],axis=1)
+        egg = torch.stack([egg,egg,egg],axis=1)
+
+        wav = self.wav_model(wav)
+        egg = self.egg_model(egg)
+        x = torch.concat([wav,egg], axis=1)
         x = x.unsqueeze(2)
         x,(hidden_state,cell_state) = self.lstm(x)
         hidden_state = torch.cat([hidden_state[-1], hidden_state[-2]], dim=-1)
@@ -2717,6 +2802,11 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
                                          win_len=mel_run_config['win_length'],
                                          n_fft=mel_run_config["n_fft"],
                                          hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_bixception_phrase_eggfusion_lstm':
+        model = Xception_wav_fusion_lstm(mel_bins=mel_run_config['n_mels'],
+                                         win_len=mel_run_config['win_length'],
+                                         n_fft=mel_run_config["n_fft"],
+                                         hop_len=mel_run_config['hop_length']).cuda()        
     elif model_name=='wav_res_phrase_eggfusion_mmtm':
         model = ResLayer_wav_fusion_mmtm(mel_bins=mel_run_config['n_mels'],
                                          win_len=mel_run_config['win_length'],
