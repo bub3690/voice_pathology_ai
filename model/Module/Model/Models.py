@@ -1649,21 +1649,21 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         egg = self.egg_model.layer2(egg) # 128, 16, 38
 
         #### SECOND MMTM ####
-        #wav, egg = self.mmtm2(wav, egg)
+        wav, egg = self.mmtm2(wav, egg)
 
         ##### THIRD RESIDUAL #####
         wav = self.wav_model.layer3(wav) # 256, 8, 19
         egg = self.egg_model.layer3(egg) # 256, 8, 19
 
         #### THIRD MMTM ####
-        wav, egg = self.mmtm3(wav, egg)
+        #wav, egg = self.mmtm3(wav, egg)
 
         ##### FOURTH RESIDUAL #####
         wav = self.wav_model.layer4(wav) # 512, 4, 10
         egg = self.egg_model.layer4(egg) # 512, 4, 10
 
         #### FOURTH MMTM ####
-        wav, egg = self.mmtm4(wav, egg)
+        #wav, egg = self.mmtm4(wav, egg)
 
         wav = self.wav_model.avgpool(wav)
         egg = self.egg_model.avgpool(egg)
