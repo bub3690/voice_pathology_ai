@@ -3,4 +3,3 @@ python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mm
 python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mmtm --dataset phrase_egg_fusion --tag mmtm wav phrase --seed 1006 --data-probs 0 --data-subset 0 --save-result True --descript "wav phrase resnet18 speaker independent"
 python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mmtm --dataset phrase_egg_fusion --tag mmtm wav phrase --seed 1007 --data-probs 0 --data-subset 0 --save-result True --descript "wav phrase resnet18 speaker independent"
 python train.py --wandb True --batch-size 16 --model wav_res_phrase_eggfusion_mmtm --dataset phrase_egg_fusion --tag mmtm wav phrase --seed 1008 --data-probs 0 --data-subset 0 --save-result True --descript "wav phrase resnet18 speaker independent"
-0
