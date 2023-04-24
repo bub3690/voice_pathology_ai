@@ -10,10 +10,25 @@ from sklearn.pipeline import make_pipeline
 from tqdm import tqdm
 import os
 import pickle
+import scipy
 
 
 
 
+def statistical_feature(feature_vec):
+    mean = np.mean(feature_vec)
+    std = np.std(feature_vec) 
+    maxv = np.amax(feature_vec) 
+    minv = np.amin(feature_vec) 
+    skew = scipy.stats.skew(feature_vec)
+    kurt = scipy.stats.kurtosis(feature_vec)
+    q1 = np.quantile(feature_vec, 0.25)
+    median = np.median(feature_vec)
+    q3 = np.quantile(feature_vec, 0.75)
+    mode = scipy.stats.mode(feature_vec)[0][0]
+    iqr = scipy.stats.iqr(feature_vec)
+    
+    return [mean, std, maxv, minv, median, skew, kurt, q1, q3, mode, iqr]
 
 
 def get_melspectro(path,config):
