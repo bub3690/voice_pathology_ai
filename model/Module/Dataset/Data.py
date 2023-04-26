@@ -177,7 +177,6 @@ class FusionData():
                 FusionData.dict_list.append(pickle.load(fr))
         return
 
- 
 
 class OpensmileData():
     

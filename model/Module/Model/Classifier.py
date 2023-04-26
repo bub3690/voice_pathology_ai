@@ -5,8 +5,7 @@ from xgboost import XGBClassifier
 import numpy as np
 import scipy
 from tqdm import tqdm
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import mutual_info_classif
+
 
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import PredefinedSplit
@@ -18,6 +17,7 @@ class Custom_svm():
     def __init__(self,kernel,save_result):
         self.kernel = kernel
         self.model = SVC(kernel=self.kernel, C=1, random_state=0,probability=save_result)
+        self.selectors = [] #fold에 따라 다른 selector
 
     def save_checkpoint(self,checkpoint_path):
         joblib.dump(self.model,checkpoint_path)
@@ -49,13 +49,6 @@ class Custom_svm():
         print('Finish train. Best params : ',grid_search.best_params_)
         
         return train_score,val_score
-    
-    def feature_selection(self,train_x,train_y,valid_x,valid_y):
-        print("Feature selection")
-        selector = SelectKBest(mutual_info_classif, k=2)
-        train_x_new = selector.fit_transform(train_x, train_y)
-        valid_x_new = selector.transform(valid_x)    
-        return train_x_new,valid_x_new
 
     
     def inference(self,test_x,test_y,save_result=False):

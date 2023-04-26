@@ -12,6 +12,10 @@ import os
 import pickle
 import scipy
 
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import mutual_info_classif
+
+
 
 
 
@@ -207,6 +211,22 @@ def save_result(all_filename, all_prediction, all_answers,all_probs,speaker_file
     #excel_name = './'+args.model+'_'+args.dataset+'_seed_'+str(args.seed)+'_organics_speaker.xlsx'
     merge_left.to_excel(excel_name,index=False)
 
+
+class FeatureSelector():
+    def __init__(self,):
+        self.selectors = [] #fold에 따라 다른 selector
+     
+    def feature_selection(self,train_x,train_y,k=512):
+        print("Feature selection")
+        selector = SelectKBest(mutual_info_classif, k=k)
+        train_x_new = selector.fit_transform(train_x, train_y)
+        self.selectors.append(selector)
+        return train_x_new
+
+    def feature_selection_inference(self,valid_x,fold,k=512):
+        print("Feature selection. inference")
+        valid_x_new = self.selectors[fold].transform(valid_x)    
+        return valid_x_new
 
 
 if __name__ =='__main__':

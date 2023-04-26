@@ -29,6 +29,7 @@ from Model.Classifier import Custom_svm
 from Utils.Utils import get_mean_std,get_scaler,save_result
 from Trainer.Trainer import test_evaluate, train, evaluate
 from tqdm import tqdm
+from Utils.Utils import FeatureSelector
 
 
 
@@ -80,6 +81,8 @@ def main():
                                 wav_res_phrase_eggfusion_mmtm_bam,wav_res_phrase_eggfusion_mmtm_nonlocal,\
                                 wav_mlp_smile]')
     parser.add_argument("--hybrid",type=bool,default=False,help="True or False")
+    parser.add_argument("--feature-selection",type=bool,default=False,help="True or False")
+    parser.add_argument("--num-features",type=int,default=1000,help="1000,512")      
     parser.add_argument('--feature',default='',nargs='+',type=str,help='list : [smile,glottal]')
     parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
     parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
@@ -358,6 +361,8 @@ def main():
 
     if args.hybrid:
         #완성된 classifier도 checkpath에 따라 저장.
+        feature_selector=FeatureSelector()
+
         for data_ind in range(1,6):
             model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
             check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
@@ -424,8 +429,13 @@ def main():
                 valid_result = np.concatenate(valid_result)
                 #valid_labels = np.concatenate(valid_labels)  
                 
+                
                 # train classifier
                 classifier = Custom_svm('rbf',False)
+                if args.feature_selection:
+                    train_result = feature_selector.feature_selection(train_result,train_labels,k=args.num_features)
+                    valid_result = feature_selector.feature_selection_inference(valid_result,fold=data_ind-1,k=args.num_features)
+                
                 train_score,val_score=classifier.train(train_result,train_labels,valid_result,valid_labels)
                 print("[Classifier {} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_score,val_score ))
 
@@ -526,13 +536,16 @@ def main():
             with torch.no_grad():
                 print("Update test result")
                 for img,handcrafted,label,paths,_ in tqdm(test_loader):
-                    
                     test_result.append(model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True ).cpu().numpy())
                     test_labels += label.tolist()
                     test_paths.append(paths)     
                 test_result = np.concatenate(test_result)
                 #test_labels = np.concatenate(test_labels)
                 test_paths = np.concatenate(test_paths)
+
+                if args.feature_selection:
+                    test_result = feature_selector.feature_selection_inference(test_result,fold=data_ind-1,k=args.num_features)
+
                 # test classifier
                 test_score, test_y, y_pred=classifier.inference(test_result,test_labels)
                 cf = confusion_matrix(test_y, y_pred)

@@ -9,7 +9,7 @@ import librosa
 
 
 from torchvision.models import ResNet
-from torchvision.models import ResNet18_Weights,VGG16_BN_Weights,AlexNet_Weights
+from torchvision.models import ResNet18_Weights,VGG16_BN_Weights,VGG19_BN_Weights,AlexNet_Weights
 
 import timm
 
@@ -330,7 +330,7 @@ class Resnet_wav_smile(nn.Module):
         out = self.concated_fc(out)
         return out
 
-class VGG16_wav_handcrafted_fusion(nn.Module):
+class VGG19_wav_handcrafted_fusion(nn.Module):
     """
     paper : Multi-modal voice pathology detection architecture based on deep and handcrafted feature fusion.
     wav만 취득하기.
@@ -338,13 +338,13 @@ class VGG16_wav_handcrafted_fusion(nn.Module):
     """    
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
-        super(VGG16_wav_handcrafted_fusion, self).__init__()
+        super(VGG19_wav_handcrafted_fusion, self).__init__()
         # if "center=True" of stft, padding = win_len / 2
 
         #self.num_ftrs = 63
 
         num_ftrs = 1000
-        self.res = models.vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs).cuda() 
+        self.res = models.vgg19_bn(weights=VGG19_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs).cuda() 
         #self.num_ftrs = self.model.fc.out_features
         self.num_ftrs = num_ftrs
 
@@ -443,7 +443,6 @@ class VGG16_wav_handcrafted_fusion(nn.Module):
 
         mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
         mel = torch.squeeze(mel,dim=1)
-
         #mel = (mel-mel.min())/(mel.max()-mel.min())
         #mel = Resnet_wav.take_log(mel)
         
@@ -625,7 +624,7 @@ class vgg_16_wav_smile(nn.Module):
         return amp2db(feature).clamp(min=-50,max=80)
     
 
-    def forward(self, x,handcrafted,augment=False):
+    def forward(self, x,handcrafted,tsne=False,augment=False):
         #spec = self.spec(x)
         #mel = self.mel_spectrogram(x)
 
@@ -640,6 +639,10 @@ class vgg_16_wav_smile(nn.Module):
         out = torch.stack([mel,mel,mel],axis=1)
         #print(out.size())
         out=self.res(out)
+        if tsne:
+            out = torch.concat([out,handcrafted],axis=1)
+            return out
+
 
         smile_out = self.smile_fc(handcrafted)
 
@@ -1003,9 +1006,6 @@ class Resnet18_custom(ResNet):
         x = self.maxpool(x)
         #print('maxpool : ',x.size()) # 64, 32, 76
         x = self.layer1(x) # batch, 64, 32, 76
-
-
-
 
         x = self.layer2(x) # 128, 16, 38
 
@@ -3062,7 +3062,7 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = Resnet_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name=='wav_vgg16_handcrafted':
-        model = VGG16_wav_handcrafted_fusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = VGG19_wav_handcrafted_fusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()    
     elif model_name=='wav_vgg16_smile':
         model = vgg_16_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()

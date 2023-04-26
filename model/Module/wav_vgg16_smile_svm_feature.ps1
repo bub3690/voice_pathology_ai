@@ -1,0 +1,1 @@
+python train.py --batch-size 16 --model wav_vgg16_smile --dataset phrase --feature smile --tag handcrafted wav phrase --seed 1004 --hybrid True --feature-selection True --num-features 1000 --normalize True --descript "wav phrase vgg16 speaker independent"
