@@ -330,7 +330,7 @@ class Resnet_wav_smile(nn.Module):
         out = self.concated_fc(out)
         return out
 
-class Resnet_wav_handcrafted_fusion(nn.Module):
+class VGG16_wav_handcrafted_fusion(nn.Module):
     """
     paper : Multi-modal voice pathology detection architecture based on deep and handcrafted feature fusion.
     wav만 취득하기.
@@ -338,7 +338,7 @@ class Resnet_wav_handcrafted_fusion(nn.Module):
     """    
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
         #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
-        super(Resnet_wav_handcrafted_fusion, self).__init__()
+        super(VGG16_wav_handcrafted_fusion, self).__init__()
         # if "center=True" of stft, padding = win_len / 2
 
         #self.num_ftrs = 63
@@ -352,10 +352,11 @@ class Resnet_wav_handcrafted_fusion(nn.Module):
             nn.Linear(self.num_ftrs, 512),
                             nn.BatchNorm1d(512),
                             nn.ReLU(),
-                            nn.Dropout(p=0.5)                         
+                            nn.Dropout(p=0.5)   
+                                                  
                             )
         self.res.classifier = nn.Sequential(*list(self.res.classifier) + [res_fc])        
-        
+
         size_mfcc = 30
         size_lpc = 30
         size_f0 = 12
@@ -434,7 +435,7 @@ class Resnet_wav_handcrafted_fusion(nn.Module):
         return amp2db(feature).clamp(min=-50,max=80)
     
 
-    def forward(self, x,handcrafted,augment=False):
+    def forward(self, x,handcrafted,tsne=False,augment=False):
         #spec = self.spec(x)
         #mel = self.mel_spectrogram(x)
         mel = self.mel_scale(x)
@@ -453,6 +454,9 @@ class Resnet_wav_handcrafted_fusion(nn.Module):
         #print(out.size())
         out=self.res(out)
         out = torch.concat([out,handcrafted],axis=1)
+        if tsne:
+            #여기서 OUT하여, ML 넣기
+            return out
         out = self.concated_fc(out)
 
         return out
@@ -3058,7 +3062,7 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = Resnet_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name=='wav_vgg16_handcrafted':
-        model = Resnet_wav_handcrafted_fusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        model = VGG16_wav_handcrafted_fusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()    
     elif model_name=='wav_vgg16_smile':
         model = vgg_16_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()

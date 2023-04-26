@@ -25,8 +25,10 @@ from Dataset.cv_spliter import cv_spliter #데이터 분할 모듈
 from Dataset.Data import make_data,get_opensmile,get_glottal # phrase 데이터를 담아둔다.
 from Dataset.Dataset import load_data,load_test_data
 from Model.Models import model_initialize
+from Model.Classifier import Custom_svm
 from Utils.Utils import get_mean_std,get_scaler,save_result
 from Trainer.Trainer import test_evaluate, train, evaluate
+from tqdm import tqdm
 
 
 
@@ -77,6 +79,7 @@ def main():
                                 wav_res_phrase_eggfusion_lstm,wav_res_phrase_eggfusion_mmtm, wav_res_smile,\
                                 wav_res_phrase_eggfusion_mmtm_bam,wav_res_phrase_eggfusion_mmtm_nonlocal,\
                                 wav_mlp_smile]')
+    parser.add_argument("--hybrid",type=bool,default=False,help="True or False")
     parser.add_argument('--feature',default='',nargs='+',type=str,help='list : [smile,glottal]')
     parser.add_argument('--data-subset',type=int,default=1,help='0: all data, 1: organics')
     parser.add_argument('--data-probs',type=int,default=0,help='choose train data probs. 0:100%, 1:20%, 2:40% , 3:60%, 4:80%')
@@ -353,6 +356,83 @@ def main():
         save_result(all_filename,all_prediction, all_answers,all_probs,speaker_file_path_abs,args)
 
 
+    if args.hybrid:
+        #완성된 classifier도 checkpath에 따라 저장.
+        for data_ind in range(1,6):
+            model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
+            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
+
+            classifier_checkpath = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_classifier.pt'
+
+            model.load_state_dict(torch.load(check_path))
+            train_loader = load_test_data(
+                                            X_train_list[data_ind-1],
+                                            Y_train_list[data_ind-1],
+                                            BATCH_SIZE,
+                                            spectro_run_config,
+                                            mel_run_config,
+                                            mfcc_run_config,    
+                                            args.normalize,
+                                            norm_mean_list,
+                                            norm_std_list,
+                                            scaler_list,
+                                            args.model,
+                                            args.dataset,
+                                            num_workers=args.workers
+                                        )               
+            valid_loader = load_test_data(
+                                            X_valid_list[data_ind-1],
+                                            Y_valid_list[data_ind-1],
+                                            BATCH_SIZE,
+                                            spectro_run_config,
+                                            mel_run_config,
+                                            mfcc_run_config,    
+                                            args.normalize,
+                                            norm_mean_list,
+                                            norm_std_list,
+                                            scaler_list,
+                                            args.model,
+                                            args.dataset,
+                                            num_workers=args.workers
+                                        )
+            train_result = []
+            train_labels = []
+            train_paths = []
+
+            valid_result = []
+            valid_labels = []
+            valid_paths = []
+            model.eval()
+            with torch.no_grad():
+                print("Update train result")
+                for img,handcrafted,label,paths,_ in tqdm(train_loader):
+                    train_result.append(model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True ).cpu().numpy())
+                    train_labels += label.tolist()
+                    train_paths.append(paths)
+                
+
+                print("Update valid result")
+                for img,handcrafted,label,paths,_ in tqdm(valid_loader):
+                    valid_result.append(model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True).cpu().numpy())
+                    valid_labels+= label.tolist()
+                    valid_paths+=paths
+                
+                train_result = np.concatenate(train_result)
+                #train_labels = np.concatenate(train_labels)
+                train_paths = np.concatenate(train_paths)
+                
+                valid_result = np.concatenate(valid_result)
+                #valid_labels = np.concatenate(valid_labels)  
+                
+                # train classifier
+                classifier = Custom_svm('rbf',False)
+                train_score,val_score=classifier.train(train_result,train_labels,valid_result,valid_labels)
+                print("[Classifier {} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_score,val_score ))
+
+                classifier.save_checkpoint(classifier_checkpath)
+
+
+
 
     # # Model Test
     # 
@@ -390,6 +470,12 @@ def main():
     average_sensitivity = 0
     average_specificity = 0    
 
+    average_classifier_accuracy = 0
+    average_classifier_fscore = 0
+    average_classifier_uar = 0
+    average_classifier_sensitivity = 0
+    average_classifier_specificity = 0    
+
     for data_ind in range(1,6):
         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
@@ -425,24 +511,89 @@ def main():
         print("recall (실제 pathology 중  예측이 맞는 것) : {:.4f}".format(recall))
         print("specificity : {:.4f}".format(specificity))
         print("UAR : {:.4f}".format( (specificity+recall)/2 ))
-        
-        
         print("f score : {:.4f} ".format(fscore))
         print(cf)
         print("-----")
 
-    print("평균 acc : {:.4f}".format(average_accuracy/5))
-    print("평균 UAR : {:.4f}".format(average_uar/5))
-    print("평균 f1score : {:.4f}".format(average_fscore/5))
-    print("평균 specificity : {:.4f}".format(average_specificity/5))
-    print("평균 sensitivity : {:.4f}".format(average_sensitivity/5))    
-    if args.wandb:
-        wandb.run.summary.update({"test 평균 acc" : average_accuracy/5,
-                                  "test 평균 f1" : average_fscore/5,
-                                  "test 평균 UAR" : average_uar/5,
-                                  "test 평균 specificity": average_specificity/5,
-                                  "test 평균 sensitivity": average_sensitivity/5,
-                                  })
+        test_result = []
+        test_labels = []
+        test_paths = []
+
+        if args.hybrid:
+            classifier_checkpath = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_classifier.pt'
+            classifier = Custom_svm('rbf',False)
+            classifier.load_checkpoint(classifier_checkpath)
+            with torch.no_grad():
+                print("Update test result")
+                for img,handcrafted,label,paths,_ in tqdm(test_loader):
+                    
+                    test_result.append(model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True ).cpu().numpy())
+                    test_labels += label.tolist()
+                    test_paths.append(paths)     
+                test_result = np.concatenate(test_result)
+                #test_labels = np.concatenate(test_labels)
+                test_paths = np.concatenate(test_paths)
+                # test classifier
+                test_score, test_y, y_pred=classifier.inference(test_result,test_labels)
+                cf = confusion_matrix(test_y, y_pred)
+                cf_list.append(cf)
+                
+                acc = accuracy_score(test_y,y_pred)
+                average_classifier_accuracy+=acc
+                
+                recall=cf[1,1]/(cf[1,1]+cf[1,0])
+                specificity=cf[0,0]/(cf[0,0]+cf[0,1])
+
+                average_classifier_sensitivity += recall
+                average_classifier_specificity += specificity
+
+                average_classifier_uar += (specificity+recall)/2
+                #fscore=2*precision*recall/(precision+recall)
+                
+                #fscroe macro추가
+                fscore = f1_score(test_y,y_pred,average='macro')
+                average_classifier_fscore+=fscore
+                
+                print('{}번 Classifier'.format(data_ind))
+                print("Accuracy : {:.4f}% ".format(acc*100))
+                #print("Precision (pathology 예측한 것중 맞는 것) : {:.4f}".format(precision))
+                print("recall (실제 pathology 중  예측이 맞는 것) : {:.4f}".format(recall))
+                print("specificity : {:.4f}".format(specificity))
+                print("UAR : {:.4f}".format( (specificity+recall)/2 ))
+                print("f score : {:.4f} ".format(fscore))
+                print(cf)
+                print("-----")                
+                          
+
+
+
+    if args.hybrid:
+        print("평균 acc : {:.4f}".format(average_classifier_accuracy/5))
+        print("평균 UAR : {:.4f}".format(average_classifier_uar/5))
+        print("평균 f1score : {:.4f}".format(average_classifier_fscore/5))
+        print("평균 specificity : {:.4f}".format(average_classifier_specificity/5))
+        print("평균 sensitivity : {:.4f}".format(average_classifier_sensitivity/5))    
+        if args.wandb:
+            wandb.run.summary.update({"test 평균 acc" : average_classifier_accuracy/5,
+                                    "test 평균 f1" : average_classifier_fscore/5,
+                                    "test 평균 UAR" : average_classifier_uar/5,
+                                    "test 평균 specificity": average_classifier_specificity/5,
+                                    "test 평균 sensitivity": average_classifier_sensitivity/5,
+                                    })
+    else:
+        print("평균 acc : {:.4f}".format(average_accuracy/5))
+        print("평균 UAR : {:.4f}".format(average_uar/5))
+        print("평균 f1score : {:.4f}".format(average_fscore/5))
+        print("평균 specificity : {:.4f}".format(average_specificity/5))
+        print("평균 sensitivity : {:.4f}".format(average_sensitivity/5))    
+        if args.wandb:
+            wandb.run.summary.update({"test 평균 acc" : average_accuracy/5,
+                                    "test 평균 f1" : average_fscore/5,
+                                    "test 평균 UAR" : average_uar/5,
+                                    "test 평균 specificity": average_specificity/5,
+                                    "test 평균 sensitivity": average_sensitivity/5,
+                                    })
+            
     return
 
 
