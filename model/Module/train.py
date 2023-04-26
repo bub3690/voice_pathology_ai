@@ -437,7 +437,7 @@ def main():
                     valid_result = feature_selector.feature_selection_inference(valid_result,fold=data_ind-1,k=args.num_features)
                 
                 train_score,val_score=classifier.train(train_result,train_labels,valid_result,valid_labels)
-                print("[Classifier {} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_score,val_score ))
+                print("[Classifier {} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind,train_score,val_score ))
 
                 classifier.save_checkpoint(classifier_checkpath)
 
