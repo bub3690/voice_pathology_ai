@@ -762,7 +762,7 @@ class svd_dataset_wav_handcrafted(Dataset):
         
         
         #spectral_envelope = svd_dataset_wav_handcrafted.get_spectral_envelope(sig,self.mel_params["sr"]) #40개
-        lpc = librosa.lpc(sig, 30) # 30개
+        lpc = librosa.lpc(sig, order=30) # 30개
         f0 = librosa.yin(sig, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), frame_length=1024, hop_length=512)
         f0 = statistical_feature(f0)
         #spectral envelope 오류나니까 빼고 실험 완성하기.
