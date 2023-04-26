@@ -1,0 +1,5 @@
+python train.py --wandb True --batch-size 16 --model wav_vgg16_handcrafted --dataset phrase --tag handcrafted wav phrase --seed 1004 --hybrid True --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_vgg16_handcrafted --dataset phrase --tag handcrafted wav phrase --seed 1005 --hybrid True --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_vgg16_handcrafted --dataset phrase --tag handcrafted wav phrase --seed 1006 --hybrid True --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_vgg16_handcrafted --dataset phrase --tag handcrafted wav phrase --seed 1007 --hybrid True --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_vgg16_handcrafted --dataset phrase --tag handcrafted wav phrase --seed 1008 --hybrid True --descript "wav phrase vgg16 speaker independent"
