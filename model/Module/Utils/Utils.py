@@ -228,6 +228,25 @@ class FeatureSelector():
         valid_x_new = self.selectors[fold].transform(valid_x)    
         return valid_x_new
 
+class PostScaler():
+    """
+    deeplearning feature, smile feature를 다시 scaling 하는 클래스
+    """
+
+    def __init__(self,):
+        self.scalers = [] #fold에 따라 다른 scaler
+    
+    def post_scaling(self,train_x):
+        print("Post scaling")
+        scaler = StandardScaler()
+        train_x_new = scaler.fit_transform(train_x)
+        self.scalers.append(scaler)
+        return train_x_new
+    
+    def post_scaling_inference(self,valid_x,fold):
+        print("Post scaling. inference")
+        valid_x_new = self.scalers[fold].transform(valid_x)    
+        return valid_x_new
 
 if __name__ =='__main__':
     print(os.getcwd())

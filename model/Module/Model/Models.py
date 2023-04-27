@@ -639,6 +639,9 @@ class vgg_16_wav_smile(nn.Module):
         out = torch.stack([mel,mel,mel],axis=1)
         #print(out.size())
         out=self.res(out)
+        #scaler
+        
+
         if tsne:
             out = torch.concat([out,handcrafted],axis=1)
             return out

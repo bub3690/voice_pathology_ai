@@ -29,7 +29,8 @@ from Model.Classifier import Custom_svm
 from Utils.Utils import get_mean_std,get_scaler,save_result
 from Trainer.Trainer import test_evaluate, train, evaluate
 from tqdm import tqdm
-from Utils.Utils import FeatureSelector
+from Utils.Utils import FeatureSelector,PostScaler
+
 
 
 
@@ -362,6 +363,7 @@ def main():
     if args.hybrid:
         #완성된 classifier도 checkpath에 따라 저장.
         feature_selector=FeatureSelector()
+        post_scaler = PostScaler()
 
         for data_ind in range(1,6):
             model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
@@ -423,12 +425,17 @@ def main():
                     valid_paths+=paths
                 
                 train_result = np.concatenate(train_result)
+
                 #train_labels = np.concatenate(train_labels)
                 train_paths = np.concatenate(train_paths)
                 
                 valid_result = np.concatenate(valid_result)
-                #valid_labels = np.concatenate(valid_labels)  
-                
+                #valid_labels = np.concatenate(valid_labels)
+
+                #post scaling
+                train_result = post_scaler.post_scaling(train_result)
+                valid_result = post_scaler.post_scaling_inference(valid_result,fold=data_ind-1)                
+
                 
                 # train classifier
                 classifier = Custom_svm('rbf',False)
@@ -543,6 +550,8 @@ def main():
                 #test_labels = np.concatenate(test_labels)
                 test_paths = np.concatenate(test_paths)
 
+                test_result = post_scaler.post_scaling_inference(test_result,fold=data_ind-1) 
+                
                 if args.feature_selection:
                     test_result = feature_selector.feature_selection_inference(test_result,fold=data_ind-1,k=args.num_features)
 
