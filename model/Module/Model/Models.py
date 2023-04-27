@@ -390,6 +390,15 @@ class VGG19_wav_handcrafted_fusion(nn.Module):
             window_fn=torch.hann_window
         )
 
+        self.stft_scale = T.Spectrogram(
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+        )
+
         self.mfcc_scale = T.MFCC(
             sample_rate=16000,
             n_mfcc=30,
@@ -438,18 +447,19 @@ class VGG19_wav_handcrafted_fusion(nn.Module):
     def forward(self, x,handcrafted,tsne=False,augment=False):
         #spec = self.spec(x)
         #mel = self.mel_spectrogram(x)
-        mel = self.mel_scale(x)
+        #mel = self.mel_scale(x)
+        stft = self.stft_scale(x)
         mfcc = self.mfcc_scale(x).squeeze(1).mean(axis=2)
 
-        mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
-        mel = torch.squeeze(mel,dim=1)
+        stft = torchaudio.functional.amplitude_to_DB(stft,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(stft)) )
+        stft = torch.squeeze(stft,dim=1)[:,:229,:]
         #mel = (mel-mel.min())/(mel.max()-mel.min())
         #mel = Resnet_wav.take_log(mel)
         
-        mel = Resnet_wav.batch_min_max(mel)
+        stft = Resnet_wav.batch_min_max(stft)
         handcrafted = torch.concat([handcrafted,mfcc],axis=1)
 
-        out = torch.stack([mel,mel,mel],axis=1)
+        out = torch.stack([stft,stft,stft],axis=1)
         #print(out.size())
         out=self.res(out)
         out = torch.concat([out,handcrafted],axis=1)
@@ -640,7 +650,7 @@ class vgg_16_wav_smile(nn.Module):
         #print(out.size())
         out=self.res(out)
         #scaler
-        
+
 
         if tsne:
             out = torch.concat([out,handcrafted],axis=1)
@@ -3064,7 +3074,7 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
     elif model_name=='wav_res_smile':
         model = Resnet_wav_smile(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
-    elif model_name=='wav_vgg16_handcrafted':
+    elif model_name=='wav_vgg19_handcrafted':
         model = VGG19_wav_handcrafted_fusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()    
     elif model_name=='wav_vgg16_smile':
