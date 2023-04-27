@@ -2101,7 +2101,7 @@ def load_data(
                                                 num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 )
-    elif model=='wav_vgg16_handcrafted':
+    elif model=='wav_vgg19_handcrafted':
         train_loader = DataLoader(dataset = svd_dataset_wav_handcrafted(
                                                     X_train_list,
                                                     Y_train_list,
@@ -2765,7 +2765,7 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
-    elif model=='wav_vgg16_handcrafted':
+    elif model=='wav_vgg19_handcrafted':
         test_loader = DataLoader(dataset = svd_dataset_wav_handcrafted(
                                                     X_test,
                                                     Y_test,

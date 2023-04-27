@@ -79,7 +79,7 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
                 output_list+= softmax_outputs
                 file_list += path_list
-    elif model_name == 'wav_vgg16_handcrafted':
+    elif model_name == 'wav_vgg19_handcrafted':
         with torch.no_grad():
             for image,handcrafted,label,path_list,origin_length in test_loader:
                 image = image.to(DEVICE)
@@ -443,7 +443,7 @@ def train(model,model_name,train_loader,optimizer,DEVICE,criterion):
             correct += prediction.eq(label.view_as(prediction)).sum().item()# 아웃풋이 배치 사이즈 32개라서.
             loss.backward() # loss 값을 이용해 gradient를 계산
             optimizer.step() # Gradient 값을 이용해 파라미터 업데이트.
-    elif model_name == 'wav_vgg16_handcrafted':
+    elif model_name == 'wav_vgg19_handcrafted':
         for batch_idx,(image,handcrafted,label,path_list,origin_length) in tqdm(enumerate(train_loader)):
             image = image.to(DEVICE)
             handcrafted = handcrafted.to(DEVICE)
@@ -808,7 +808,7 @@ def evaluate(model,model_name,valid_loader,DEVICE,criterion):
                 #print(prediction.eq(label.view_as(prediction)))
                 #print(path_list)
                 #true.false값을 sum해줌. item#wav_res_smile
-    elif model_name == 'wav_vgg16_handcrafted':
+    elif model_name == 'wav_vgg19_handcrafted':
         with torch.no_grad():
             for image,handcrafted,label,path_list,origin_length in valid_loader:
                 image = image.to(DEVICE)
