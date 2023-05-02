@@ -82,6 +82,8 @@ def main():
                                 wav_res_phrase_eggfusion_mmtm_bam,wav_res_phrase_eggfusion_mmtm_nonlocal,\
                                 wav_mlp_smile]')
     parser.add_argument("--hybrid",type=bool,default=False,help="True or False")
+    parser.add_argument("--hybrid-loader",type=str,default=False,help="model name")
+    parser.add_argument("--inference",type=bool,default=False,help="True or False")
     parser.add_argument("--feature-selection",type=bool,default=False,help="True or False")
     parser.add_argument("--num-features",type=int,default=1000,help="1000,512")      
     parser.add_argument('--feature',default='',nargs='+',type=str,help='list : [smile,glottal]')
@@ -236,91 +238,96 @@ def main():
     elif args.data_subset==1:
         data_subset = 'organics'
 
-    for data_ind in range(1,6):
+    if args.inference==False:
+        for data_ind in range(1,6):
 
-        check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
-        print(check_path)
-        early_stopping = EarlyStopping(patience = args.es, verbose = True, path=check_path)
-        train_loader,validation_loader = load_data( X_train_list[data_ind-1],
-                                                    X_valid_list[data_ind-1],
-                                                    Y_train_list[data_ind-1],
-                                                    Y_valid_list[data_ind-1],
-                                                    BATCH_SIZE,
-                                                    spectro_run_config,
-                                                    mel_run_config,
-                                                    mfcc_run_config,
-                                                    args.normalize,
-                                                    norm_mean_list,
-                                                    norm_std_list,
-                                                    scaler_list,
-                                                    args.model,
-                                                    args.dataset,
-                                                    args.augment,
-                                                    augment_params,
-                                                    num_workers=args.workers)
-        best_train_acc=0 # accuracy 기록용
-        best_valid_acc=0
-        
-        model = model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
-        criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
-        optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=weight_decay)
-        
-        print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))
-        for Epoch in range(1,EPOCHS+1):
-            if args.model=='wav_res_splicing':
-                train_criterion = nn.CrossEntropyLoss(reduction='none')
-                train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,train_criterion)
-            else:
-                train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,criterion)
-            valid_loss,valid_accuracy = evaluate(model,args.model,validation_loader,DEVICE,criterion)
+            check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
+            print(check_path)
+            early_stopping = EarlyStopping(patience = args.es, verbose = True, path=check_path)
+            train_loader,validation_loader = load_data( X_train_list[data_ind-1],
+                                                        X_valid_list[data_ind-1],
+                                                        Y_train_list[data_ind-1],
+                                                        Y_valid_list[data_ind-1],
+                                                        BATCH_SIZE,
+                                                        spectro_run_config,
+                                                        mel_run_config,
+                                                        mfcc_run_config,
+                                                        args.normalize,
+                                                        norm_mean_list,
+                                                        norm_std_list,
+                                                        scaler_list,
+                                                        args.model,
+                                                        args.dataset,
+                                                        args.augment,
+                                                        augment_params,
+                                                        num_workers=args.workers)
+            best_train_acc=0 # accuracy 기록용
+            best_valid_acc=0
             
-            logger_valid_acc = "valid {}fold Accuracy".format(data_ind)
-            logger_train_acc = "train {}fold Accuracy".format(data_ind)
-            logger_valid_loss = "valid {}fold loss".format(data_ind)
-            logger_train_loss = "train {}fold loss".format(data_ind)
+            model = model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
+            criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
+            optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=weight_decay)
             
+            print("[{} 교차검증] 학습 시작\n ----- ".format(data_ind))
+            for Epoch in range(1,EPOCHS+1):
+                if args.model=='wav_res_splicing':
+                    train_criterion = nn.CrossEntropyLoss(reduction='none')
+                    train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,train_criterion)
+                else:
+                    train_loss,train_accuracy=train(model,args.model,train_loader,optimizer,DEVICE,criterion)
+                valid_loss,valid_accuracy = evaluate(model,args.model,validation_loader,DEVICE,criterion)
+                
+                logger_valid_acc = "valid {}fold Accuracy".format(data_ind)
+                logger_train_acc = "train {}fold Accuracy".format(data_ind)
+                logger_valid_loss = "valid {}fold loss".format(data_ind)
+                logger_train_loss = "train {}fold loss".format(data_ind)
+                
 
-            if args.wandb:
-                wandb.log({
-                        #logger_train_acc :train_accuracy,
-                        #logger_train_loss : train_loss,
-                        logger_valid_acc : valid_accuracy,
-                        logger_valid_loss : valid_loss},
-                        commit=False,
-                        step=Epoch)
-
-            print("\n[EPOCH:{}]\t Train Loss:{:.4f}\t Train Acc:{:.2f} %  | \tValid Loss:{:.4f} \tValid Acc: {:.2f} %\n".
-                format(Epoch,train_loss,train_accuracy,valid_loss,valid_accuracy))
-            
-
-            early_stopping(valid_loss, model)
-            if -early_stopping.best_score == valid_loss:
-                best_train_acc, best_valid_acc = train_accuracy,valid_accuracy
                 if args.wandb:
-                    wandb.run.summary.update({"best_valid_{}fold_acc".format(data_ind) : best_valid_acc})
-            
-            if early_stopping.early_stop:
+                    wandb.log({
+                            #logger_train_acc :train_accuracy,
+                            #logger_train_loss : train_loss,
+                            logger_valid_acc : valid_accuracy,
+                            logger_valid_loss : valid_loss},
+                            commit=False,
+                            step=Epoch)
+
+                print("\n[EPOCH:{}]\t Train Loss:{:.4f}\t Train Acc:{:.2f} %  | \tValid Loss:{:.4f} \tValid Acc: {:.2f} %\n".
+                    format(Epoch,train_loss,train_accuracy,valid_loss,valid_accuracy))
+                
+
+                early_stopping(valid_loss, model)
+                if -early_stopping.best_score == valid_loss:
+                    best_train_acc, best_valid_acc = train_accuracy,valid_accuracy
+                    if args.wandb:
+                        wandb.run.summary.update({"best_valid_{}fold_acc".format(data_ind) : best_valid_acc})
+                
+                if early_stopping.early_stop:
+                        train_accs.append(best_train_acc)
+                        valid_accs.append(best_valid_acc)
+                        print("[{} 교차검증] Early stopping".format(data_ind))
+                        break
+
+                if Epoch==EPOCHS:
+                    #만약 early stop 없이 40 epoch라서 중지 된 경우. 
                     train_accs.append(best_train_acc)
                     valid_accs.append(best_valid_acc)
-                    print("[{} 교차검증] Early stopping".format(data_ind))
-                    break
+                #scheduler.step()
+                #print(scheduler.get_last_lr())
 
-            if Epoch==EPOCHS:
-                #만약 early stop 없이 40 epoch라서 중지 된 경우. 
-                train_accs.append(best_train_acc)
-                valid_accs.append(best_valid_acc)
-            #scheduler.step()
-            #print(scheduler.get_last_lr())
-
-    # # Model 결과 확인
-    sum_valid=0
-    for data_ind in range(5):
-        print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
-        sum_valid+=valid_accs[data_ind]
-        
-    print("평균 검증 정확도",sum_valid/5,"%")
+        # # Model 결과 확인
+        sum_valid=0
+        for data_ind in range(5):
+            print("[{} 교차검증] train ACC : {:.4f} |\t valid ACC: {:.4f} ".format(data_ind+1,train_accs[data_ind],valid_accs[data_ind] ))
+            sum_valid+=valid_accs[data_ind]
+            
+        print("평균 검증 정확도",sum_valid/5,"%")
     
 
+    #########
+    args.normalize = True#임시
+    #######
+    
     # validation result
 
     # for save result
@@ -332,6 +339,7 @@ def main():
     if args.save_result:
         print("save valid result")
         for data_ind in range(1,6):
+            
             model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
             check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
             model.load_state_dict(torch.load(check_path))            
@@ -383,7 +391,7 @@ def main():
                                             norm_mean_list,
                                             norm_std_list,
                                             scaler_list,
-                                            args.model,
+                                            args.hybrid_loader,
                                             args.dataset,
                                             num_workers=args.workers
                                         )               
@@ -398,7 +406,7 @@ def main():
                                             norm_mean_list,
                                             norm_std_list,
                                             scaler_list,
-                                            args.model,
+                                            args.hybrid_loader,
                                             args.dataset,
                                             num_workers=args.workers
                                         )
@@ -412,19 +420,30 @@ def main():
             model.eval()
             with torch.no_grad():
                 print("Update train result")
+                #이부분 수정 필요. train 결과 받아오는 것이 메소드마다 달라야한다. but. 같이 포함안하는 것이 더 좋은것이 확인 됐으니 그냥 바꾸기.
+                #train loader를 handcrafted 포함된 것으로 수정해야하니. hybrid loader도 따로 적어줘야한다.
+                
                 for img,handcrafted,label,paths,_ in tqdm(train_loader):
-                    train_result.append(model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True ).cpu().numpy())
+                    #code numpy concat handcrafted,model(img)
+                    train_result.append( np.concatenate([handcrafted.cpu().numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
+                    
                     train_labels += label.tolist()
                     train_paths.append(paths)
+                
                 
 
                 print("Update valid result")
                 for img,handcrafted,label,paths,_ in tqdm(valid_loader):
-                    valid_result.append(model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True).cpu().numpy())
+                    valid_result.append( np.concatenate([handcrafted.cpu().numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
                     valid_labels+= label.tolist()
                     valid_paths+=paths
                 
                 train_result = np.concatenate(train_result)
+                
+                # use pandas train_result to {fold}.csv
+                pd.DataFrame(train_result).to_csv('./train_result/train_result_'+str(data_ind)+'.csv',index=True)
+                
+                
 
                 #train_labels = np.concatenate(train_labels)
                 train_paths = np.concatenate(train_paths)
@@ -433,8 +452,9 @@ def main():
                 #valid_labels = np.concatenate(valid_labels)
 
                 #post scaling
-                train_result = post_scaler.post_scaling(train_result)
-                valid_result = post_scaler.post_scaling_inference(valid_result,fold=data_ind-1)                
+                train_result[:,6373:] = post_scaler.post_scaling(train_result[:,6373:])
+                pd.DataFrame(train_result).to_csv('./train_result/post_train_result_'+str(data_ind)+'.csv',index=True)
+                valid_result[:,6373:] = post_scaler.post_scaling_inference(valid_result[:,6373:],fold=data_ind-1)
 
                 
                 # train classifier
@@ -463,20 +483,7 @@ def main():
 
 
 
-    test_loader = load_test_data(
-        X_test,
-        Y_test,
-        BATCH_SIZE,
-        spectro_run_config,
-        mel_run_config,
-        mfcc_run_config,    
-        args.normalize,
-        norm_mean_list,
-        norm_std_list,
-        scaler_list,
-        args.model,
-        args.dataset,
-        num_workers=args.workers)
+
 
 
     cf = np.zeros((2,2))
@@ -494,10 +501,27 @@ def main():
     average_classifier_specificity = 0    
 
     for data_ind in range(1,6):
+        test_loader = load_test_data(
+            X_test,
+            Y_test,
+            BATCH_SIZE, 
+            spectro_run_config,
+            mel_run_config,
+            mfcc_run_config,    
+            args.normalize,
+            norm_mean_list,
+            norm_std_list,
+            scaler_list,
+            args.model,
+            args.dataset,
+            num_workers=args.workers)        
+        
+        
         model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
         check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
         model.load_state_dict(torch.load(check_path))
-
+        criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
+        
         predictions,answers,test_loss = test_evaluate(model,args.model,test_loader, DEVICE, criterion)
         predictions=[ dat.cpu().numpy() for dat in predictions]
         answers=[ dat.cpu().numpy() for dat in answers]
@@ -540,17 +564,33 @@ def main():
             classifier_checkpath = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_classifier.pt'
             classifier = Custom_svm('rbf',False)
             classifier.load_checkpoint(classifier_checkpath)
+            test_loader = load_test_data(
+                                            X_test,
+                                            Y_test,
+                                            BATCH_SIZE,
+                                            spectro_run_config,
+                                            mel_run_config,
+                                            mfcc_run_config,    
+                                            args.normalize,
+                                            norm_mean_list,
+                                            norm_std_list,
+                                            scaler_list,
+                                            args.hybrid_loader,
+                                            args.dataset,
+                                            num_workers=args.workers
+                                        )            
+            
             with torch.no_grad():
                 print("Update test result")
                 for img,handcrafted,label,paths,_ in tqdm(test_loader):
-                    test_result.append(model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True ).cpu().numpy())
+                    test_result.append( np.concatenate([handcrafted.cpu().numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
                     test_labels += label.tolist()
                     test_paths.append(paths)     
                 test_result = np.concatenate(test_result)
                 #test_labels = np.concatenate(test_labels)
                 test_paths = np.concatenate(test_paths)
 
-                test_result = post_scaler.post_scaling_inference(test_result,fold=data_ind-1) 
+                test_result[:,6373:] = post_scaler.post_scaling_inference(test_result[:,6373:],fold=data_ind-1) 
                 
                 if args.feature_selection:
                     test_result = feature_selector.feature_selection_inference(test_result,fold=data_ind-1,k=args.num_features)
@@ -584,7 +624,7 @@ def main():
                 print("UAR : {:.4f}".format( (specificity+recall)/2 ))
                 print("f score : {:.4f} ".format(fscore))
                 print(cf)
-                print("-----")                
+                print("-----")
                           
 
 

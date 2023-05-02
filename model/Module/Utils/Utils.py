@@ -238,7 +238,9 @@ class PostScaler():
     
     def post_scaling(self,train_x):
         print("Post scaling")
+        #scaler = QuantileTransformer(output_distribution='uniform')
         scaler = StandardScaler()
+        #scaler = MinMaxScaler()
         train_x_new = scaler.fit_transform(train_x)
         self.scalers.append(scaler)
         return train_x_new

@@ -5,6 +5,7 @@ from xgboost import XGBClassifier
 import numpy as np
 import scipy
 from tqdm import tqdm
+import pandas as pd
 
 
 from sklearn.model_selection import GridSearchCV
@@ -30,7 +31,9 @@ class Custom_svm():
         param_range = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
         param_grid = [
             {'C': param_range},]
-        X = np.concatenate((train_x,valid_x),axis=0) 
+        X = np.concatenate((train_x,valid_x),axis=0)
+        #pd.DataFrame(X).to_csv('X.csv')
+        
         y = train_y + valid_y 
         test_fold = [-1] * len(train_x) + [0] * len(valid_y)
         ps = PredefinedSplit(test_fold)

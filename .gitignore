@@ -20,3 +20,4 @@ checkpoint/
 *.pyc
 kaggle/
 images/
+train_result/
