@@ -423,9 +423,10 @@ def main():
                 #이부분 수정 필요. train 결과 받아오는 것이 메소드마다 달라야한다. but. 같이 포함안하는 것이 더 좋은것이 확인 됐으니 그냥 바꾸기.
                 #train loader를 handcrafted 포함된 것으로 수정해야하니. hybrid loader도 따로 적어줘야한다.
                 
+                
                 for img,handcrafted,label,paths,_ in tqdm(train_loader):
                     #code numpy concat handcrafted,model(img)
-                    train_result.append( np.concatenate([handcrafted.cpu().numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
+                    train_result.append( model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True).cpu().numpy() )
                     
                     train_labels += label.tolist()
                     train_paths.append(paths)
@@ -434,7 +435,7 @@ def main():
 
                 print("Update valid result")
                 for img,handcrafted,label,paths,_ in tqdm(valid_loader):
-                    valid_result.append( np.concatenate([handcrafted.cpu().numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
+                    valid_result.append( model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True).cpu().numpy() )
                     valid_labels+= label.tolist()
                     valid_paths+=paths
                 
@@ -452,9 +453,10 @@ def main():
                 #valid_labels = np.concatenate(valid_labels)
 
                 #post scaling
-                train_result[:,6373:] = post_scaler.post_scaling(train_result[:,6373:])
-                pd.DataFrame(train_result).to_csv('./train_result/post_train_result_'+str(data_ind)+'.csv',index=True)
-                valid_result[:,6373:] = post_scaler.post_scaling_inference(valid_result[:,6373:],fold=data_ind-1)
+                # print(train_result.shape)
+                # train_result[:,6373:] = post_scaler.post_scaling(train_result[:,6373:])
+                # pd.DataFrame(train_result).to_csv('./train_result/post_train_result_'+str(data_ind)+'.csv',index=True)
+                # valid_result[:,6373:] = post_scaler.post_scaling_inference(valid_result[:,6373:],fold=data_ind-1)
 
                 
                 # train classifier
@@ -583,14 +585,14 @@ def main():
             with torch.no_grad():
                 print("Update test result")
                 for img,handcrafted,label,paths,_ in tqdm(test_loader):
-                    test_result.append( np.concatenate([handcrafted.cpu().numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
+                    test_result.append( model(img.to(DEVICE),handcrafted.to(DEVICE),tsne=True).cpu().numpy() )
                     test_labels += label.tolist()
                     test_paths.append(paths)     
                 test_result = np.concatenate(test_result)
                 #test_labels = np.concatenate(test_labels)
                 test_paths = np.concatenate(test_paths)
-
-                test_result[:,6373:] = post_scaler.post_scaling_inference(test_result[:,6373:],fold=data_ind-1) 
+                
+                # test_result[:,6373:] = post_scaler.post_scaling_inference(test_result[:,6373:],fold=data_ind-1) 
                 
                 if args.feature_selection:
                     test_result = feature_selector.feature_selection_inference(test_result,fold=data_ind-1,k=args.num_features)

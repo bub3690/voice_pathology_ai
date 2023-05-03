@@ -238,15 +238,17 @@ class PostScaler():
     
     def post_scaling(self,train_x):
         print("Post scaling")
-        #scaler = QuantileTransformer(output_distribution='uniform')
-        scaler = StandardScaler()
+        scaler = QuantileTransformer(output_distribution='normal')
+        #scaler = StandardScaler()
         #scaler = MinMaxScaler()
+        print(train_x.shape)
         train_x_new = scaler.fit_transform(train_x)
         self.scalers.append(scaler)
         return train_x_new
     
     def post_scaling_inference(self,valid_x,fold):
         print("Post scaling. inference")
+        print(valid_x.shape)
         valid_x_new = self.scalers[fold].transform(valid_x)    
         return valid_x_new
 
