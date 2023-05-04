@@ -666,10 +666,10 @@ class vgg_16_wav_smile2(nn.Module):
             nn.BatchNorm1d(4096),
             nn.ReLU(),
             nn.Linear(4096, 3000),
-            nn.BatchNorm1d(3000),
-            nn.ReLU(),            
+            nn.BatchNorm1d(3000),         
             
         )
+        self.middle_relu = nn.ReLU()
         self.concated_fc2 = nn.Sequential(
                             nn.Linear(3000, 2048),
                             nn.BatchNorm1d(2048),
@@ -788,6 +788,7 @@ class vgg_16_wav_smile2(nn.Module):
         out = self.concated_fc1(out)
         if tsne:
             return out
+        out = self.middle_relu(out)
         out = self.concated_fc2(out)
         return out
     
