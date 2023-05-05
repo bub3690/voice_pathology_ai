@@ -787,7 +787,7 @@ class vgg_16_wav_smile2(nn.Module):
         out = torch.concat([out,handcrafted],axis=1)
         out = self.concated_fc1(out)
         if tsne:
-            return out
+            return  
         out = self.middle_relu(out)
         out = self.concated_fc2(out)
         return out
