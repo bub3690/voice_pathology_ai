@@ -96,6 +96,8 @@ def main():
                             help='write custom model for wandb')
     parser.add_argument('--normalize',type=bool,default=False,
                         help='true or false to get std normalize')
+    parser.add_argument('--feature-normalize',type=bool,default=False,
+                        help='true or false to get std normalize')
     parser.add_argument('--project-name',type=str, default='SVD-voice-disorder',
                             help='project name for wandb')
     parser.add_argument('--workers',type=int, default=0,
@@ -198,13 +200,13 @@ def main():
     if 'smile' in args.feature:
         opensmile_path = "../../voice_data/all_data_ver2/smile_16000_all.pickle"
         get_opensmile(opensmile_path)
-        if args.normalize:
+        if args.feature_normalize:
             get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'smile',spectro_run_config,mel_run_config,mfcc_run_config,num_workers=args.workers)
 
     if 'glottal' in args.feature:
         glottal_path = "../../voice_data/all_data_ver2/glottal_all_ver2.xlsx"
         get_glottal(glottal_path)
-        if args.normalize:
+        if args.feature_normalize:
             get_scaler(X_train_list[0]+X_valid_list[0], Y_train_list[0]+Y_valid_list[0],'glottal',spectro_run_config,mel_run_config,mfcc_run_config,num_workers=args.workers)
     
 
@@ -326,7 +328,7 @@ def main():
     
 
     #########
-    args.normalize = True#임시
+    #args.normalize = True#임시
     #######
     
     # validation result
@@ -378,7 +380,7 @@ def main():
             model=model_initialize(args.model,  spectro_run_config,mel_run_config,mfcc_run_config)
             check_path = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_speaker.pt'
 
-            classifier_checkpath = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_classifier.pt'
+            classifier_checkpath = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.feature_normalize).lower()+'_'+data_subset+'_classifier.pt'
 
             model.load_state_dict(torch.load(check_path))
             train_loader = load_test_data(
@@ -394,6 +396,7 @@ def main():
                                             scaler_list,
                                             args.hybrid_loader,
                                             args.dataset,
+                                            feature_normalize=args.feature_normalize,
                                             num_workers=args.workers
                                         )               
             valid_loader = load_test_data(
@@ -409,6 +412,7 @@ def main():
                                             scaler_list,
                                             args.hybrid_loader,
                                             args.dataset,
+                                            feature_normalize=args.feature_normalize,
                                             num_workers=args.workers
                                         )
             train_result = []
@@ -577,7 +581,7 @@ def main():
         test_paths = []
 
         if args.hybrid:
-            classifier_checkpath = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.normalize).lower()+'_'+data_subset+'_classifier.pt'
+            classifier_checkpath = './checkpoint/checkpoint_ros_fold_'+str(data_ind)+'_'+args.model+'_seed_'+str(args.seed)+'_dataset_'+args.dataset+'_norm_'+str(args.feature_normalize).lower()+'_'+data_subset+'_classifier.pt'
             classifier = Custom_svm('rbf',False)
             classifier.load_checkpoint(classifier_checkpath)
             test_loader = load_test_data(
@@ -593,6 +597,7 @@ def main():
                                             scaler_list,
                                             args.hybrid_loader,
                                             args.dataset,
+                                            feature_normalize=args.feature_normalize,
                                             num_workers=args.workers
                                         )            
             

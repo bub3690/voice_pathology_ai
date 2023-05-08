@@ -1968,6 +1968,7 @@ def load_data(
     dataset,
     augment,
     augment_params,
+    feature_normalize=False,
     num_workers=0
     ):
     
@@ -2136,7 +2137,7 @@ def load_data(
                                                     X_train_list,
                                                     Y_train_list,
                                                     classes,
-                                                    scaler_list=scaler_list,                                               
+                                                    scaler_list=scaler_list,
                                                     mel_params = mel_run_config,
                                                     transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
                                                     is_train = True,
@@ -2702,7 +2703,7 @@ def load_data(
     return train_loader,validation_loader
 
 
-def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,scaler_list,model,dataset,num_workers=0):
+def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mfcc_run_config,is_normalize,norm_mean_list,norm_std_list,scaler_list,model,dataset,feature_normalize=False,num_workers=0):
     if model=='baseline':
         test_loader = DataLoader(dataset = svd_dataset(
                                             X_test,
