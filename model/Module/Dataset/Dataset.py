@@ -2377,6 +2377,7 @@ def load_data(
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
 
@@ -2391,6 +2392,7 @@ def load_data(
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 )
     elif model=='wav_res_phrase_eggfusion_mmtm_smile':
@@ -2405,6 +2407,7 @@ def load_data(
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.
 
@@ -2419,6 +2422,7 @@ def load_data(
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 )        
     elif model=='wav_vgg16_phrase_eggfusion_mmtm':
@@ -3014,6 +3018,7 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.svd_dataset_wav_nopad
     elif model=='wav_res_phrase_eggfusion_mmtm_smile':
@@ -3027,6 +3032,7 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 ),
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
+                                                num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.svd_dataset_wav_nopad        
     elif model=='wav_vgg16_phrase_eggfusion_mmtm':
