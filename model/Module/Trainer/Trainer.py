@@ -172,6 +172,21 @@ def test_evaluate(model,model_name,test_loader,DEVICE,criterion,save_result=Fals
                 softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
                 output_list+= softmax_outputs
                 file_list += path_list
+    elif model_name == 'wav_vgg16_phrase_eggfusion_mmtm':
+        with torch.no_grad():
+            for image,label,path_list,origin_length in test_loader:
+                image = image.to(DEVICE)
+                label = label.to(DEVICE)
+                output = model(image)
+                test_loss += criterion(output, label).item()
+                prediction = output.max(1,keepdim=True)[1] # 가장 확률이 높은 class 1개를 가져온다.그리고 인덱스만
+                answers +=label
+                predictions +=prediction
+
+                #save result
+                softmax_outputs = F.softmax(output,dim=1)[:,1] # pathology 확률 
+                output_list+= softmax_outputs
+                file_list += path_list                
     elif model_name == 'wav_res_phrase_eggfusion_mmtm_bam':#wav_res_phrase_eggfusion_mmtm_nonlocal
         with torch.no_grad():
             for image,label,path_list,origin_length in test_loader:

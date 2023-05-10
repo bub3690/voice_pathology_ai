@@ -19,6 +19,8 @@ from dropblock import DropBlock2D, LinearScheduler
 import torchvision.models as models
 from torchvision.models.resnet import ResNet, BasicBlock
 
+
+
 from .Ablations import xception,\
     efficient_b0,efficient_b1,efficient_b2,efficient_b3,\
     resnet34,resnet50,resnet101,\
@@ -1183,57 +1185,59 @@ class vgg_16_wav_smile_gap(nn.Module):
         out = self.concated_fc(out)
         return out
 
-#ResLayer_wav_fusion_mmtm
+
+
+
 
 class Vgg_16_wav_mmtm(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
-        
-        #GAP로 바꿔서 실험해보기.
-
         #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
         super(Vgg_16_wav_mmtm, self).__init__()
         # if "center=True" of stft, padding = win_len / 2
-
+        self.mmtm1 = MMTM_max(64,64,4)
+        self.mmtm2 = MMTM_max(128,128,4)      
+        self.mmtm3 = MMTM_max(256,256,4)     
+        self.mmtm4 = MMTM_max(512,512,4) 
         #self.num_ftrs = 63
         num_ftrs = 1000
-        self.res = models.vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs)
+        self.vgg_list = []
+        self.vgg_list.append(models.vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs)) # 0 : wav
+        self.vgg_list.append(models.vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs)) # 1 : egg
         #self.num_ftrs = self.model.fc.out_features
+        self.vgg_list = nn.ModuleList(self.vgg_list) # 모듈임을 알려주기
         self.num_ftrs = num_ftrs
+        #import pdb;pdb.set_trace()
+        # self.wav_layer1=None;self.wav_layer1_maxpool=None;self.wav_layer2=None;self.wav_layer2_maxpool=None
+        # self.wav_layer3=None;self.wav_layer3_maxpool=None;self.wav_layer4=None;self.wav_layer4_maxpool=None
+        # self.wav_layer5=None;self.wav_layer5_maxpool=None;avgpool = None 
+  
+        self.wav_layer1,self.wav_layer1_maxpool,self.wav_layer2,self.wav_layer2_maxpool,\
+        self.wav_layer3,self.wav_layer3_maxpool,self.wav_layer4,self.wav_layer4_maxpool,\
+        self.wav_layer5,self.wav_layer5_maxpool,self.avgpool = self.make_layer(0)
 
-        self.layer1=self.res.features[:6]
-        self.layer1_maxpool=self.res.features[6]
-        self.layer1_downsample = nn.Conv2d(64, 128, kernel_size=(1, 1), bias=False)
+        # self.egg_layer1=None;self.egg_layer1_maxpool=None;self.egg_layer2=None;self.egg_layer2_maxpool=None
+        # self.egg_layer3=None;self.egg_layer3_maxpool=None;self.egg_layer4=None;self.egg_layer4_maxpool=None
+        # self.egg_layer5=None;self.egg_layer5_maxpool=None;avgpool = None
 
-        #identity = nn.Identity()
-        #residual = identity(layer1_maxpool)
-
-        self.layer2=self.res.features[7:13]
-
-        self.layer2_maxpool=self.res.features[13] 
-        self.layer2_downsample = nn.Conv2d(128, 256, kernel_size=(1, 1), bias=False)
+        self.egg_layer1,self.egg_layer1_maxpool,self.egg_layer2,self.egg_layer2_maxpool,\
+        self.egg_layer3,self.egg_layer3_maxpool,self.egg_layer4,self.egg_layer4_maxpool,\
+        self.egg_layer5,self.egg_layer5_maxpool,self.avgpool = self.make_layer(1)
 
 
-        self.layer3=self.res.features[14:23]
-        self.layer3_maxpool=self.res.features[23] 
-        self.layer3_downsample = nn.Conv2d(256, 512, kernel_size=(1, 1), bias=False)
-
-        self.layer4=self.res.features[24:33]
-        self.layer4_maxpool=self.res.features[33]
-        self.layer4_downsample = nn.Conv2d(512, 512, kernel_size=(1, 1), bias=False)
-
-        self.layer5=self.res.features[34:43]
-        self.layer5_maxpool=self.res.features[43]
-
-        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
-
-        res_fc = nn.Sequential(       
+        wav_fc = nn.Sequential(       
             nn.Linear(self.num_ftrs, 512),
                             nn.BatchNorm1d(512),
                             nn.ReLU(),
                             nn.Dropout(p=0.5)                         
                             )
-        self.res_classifier = nn.Sequential(*list(self.res.classifier) + [res_fc])
-        
+        self.wav_res_classifier = nn.Sequential(*list(self.vgg_list[0].classifier) + [wav_fc])
+        egg_fc = nn.Sequential(       
+            nn.Linear(self.num_ftrs, 512),
+                            nn.BatchNorm1d(512),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5)                         
+                            )
+        self.egg_res_classifier = nn.Sequential(*list(self.vgg_list[1].classifier) + [egg_fc])        
 
         
         self.concated_fc= nn.Sequential(
@@ -1273,6 +1277,30 @@ class Vgg_16_wav_mmtm(nn.Module):
             T.FrequencyMasking(freq_mask_param=80),
             T.TimeMasking(time_mask_param=40),
         )
+        
+    def make_layer(self,network_num):
+        # network 번호를 받아서 새로운 네트워크를 만들지 고민중.
+        layer1=self.vgg_list[network_num].features[:6]
+        layer1_maxpool=self.vgg_list[network_num].features[6]
+        #identity = nn.Identity()
+        #residual = identity(layer1_maxpool)
+
+        layer2=self.vgg_list[network_num].features[7:13]
+        layer2_maxpool=self.vgg_list[network_num].features[13]
+
+        layer3=self.vgg_list[network_num].features[14:23]
+        layer3_maxpool=self.vgg_list[network_num].features[23] 
+
+
+        layer4=self.vgg_list[network_num].features[24:33]
+        layer4_maxpool=self.vgg_list[network_num].features[33]
+
+
+        layer5=self.vgg_list[network_num].features[34:43]
+        layer5_maxpool=self.vgg_list[network_num].features[43]
+
+        avgpool = nn.AdaptiveAvgPool2d((7, 7))        
+        return layer1,layer1_maxpool,layer2,layer2_maxpool,layer3,layer3_maxpool,layer4,layer4_maxpool,layer5,layer5_maxpool,avgpool
 
     #@classmethod
     def sample_min_max(batch):
@@ -1291,51 +1319,258 @@ class Vgg_16_wav_mmtm(nn.Module):
         amp2db = torchaudio.transforms.AmplitudeToDB(stype="amplitude")
         amp2db.amin=1e-5
         return amp2db(feature).clamp(min=-50,max=80)
-    
 
-    def forward(self, x,handcrafted,augment=False):
+    def forward(self, x_list,tsne=False,augment=False):
         #spec = self.spec(x)
         #mel = self.mel_spectrogram(x)
+        wav = self.mel_scale(x_list[:,0,...])
+        wav = wav.squeeze(1)
+        wav = torchaudio.functional.amplitude_to_DB(wav,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(wav)) ) 
+        wav = Vgg_16_wav_mmtm.batch_min_max(wav)
 
-        mel = self.mel_scale(x)
+        egg = self.mel_scale(x_list[:,1,...])
+        egg = egg.squeeze(1)
+        egg = torchaudio.functional.amplitude_to_DB(egg,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(egg)) )
+        egg = Vgg_16_wav_mmtm.batch_min_max(egg)
         
-        mel = torchaudio.functional.amplitude_to_DB(mel,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(mel)) )
-        mel = torch.squeeze(mel,dim=1)        
-        #mel = (mel-mel.min())/(mel.max()-mel.min())
-        #mel = Resnet_wav.take_log(mel)
-        
-        mel = vgg_16_wav_smile_reslayer.batch_min_max(mel)
-
-        out = torch.stack([mel,mel,mel],axis=1)
+        wav = torch.stack([wav,wav,wav],axis=1)
+        egg = torch.stack([egg,egg,egg],axis=1)
         #print(out.size())
 
-        out=self.layer1(out)
-        out=self.layer1_maxpool(out)
-        residual = out
+        wav=self.wav_layer1(wav)
+        wav=self.wav_layer1_maxpool(wav)
+        egg=self.egg_layer1(egg)
+        egg=self.egg_layer1_maxpool(egg)        
+        wav,egg=self.mmtm1(wav,egg)
         
-        out=self.layer2(out)
-        residual = self.layer1_downsample(residual)
-        out=self.layer2_maxpool(out)
-        residual = out
+        wav=self.wav_layer2(wav)
+        wav=self.wav_layer2_maxpool(wav)
+        egg=self.egg_layer2(egg)
+        egg=self.egg_layer2_maxpool(egg)
+        wav,egg=self.mmtm2(wav,egg)
 
-        out=self.layer3(out)
-        residual = self.layer2_downsample(residual)
-        out=self.layer3_maxpool(out)
-        residual = out
+        wav=self.wav_layer3(wav)
+        wav=self.wav_layer3_maxpool(wav)
+        egg=self.egg_layer3(egg)
+        egg=self.egg_layer3_maxpool(egg)
+        wav,egg=self.mmtm3(wav,egg) 
+        
 
-        out=self.layer4(out)
-        residual = self.layer3_downsample(residual)
-        out=self.layer4_maxpool(out)
+        wav=self.wav_layer4(wav)
+        wav=self.wav_layer4_maxpool(wav)
+        egg=self.egg_layer4(egg)
+        egg=self.egg_layer4_maxpool(egg)
+        wav,egg=self.mmtm4(wav,egg) 
 
-        out=self.layer5(out)
-        residual = self.layer4_downsample(residual)
-        out=self.layer5_maxpool(out)
-        out=self.avgpool(out)
+        wav=self.wav_layer5(wav)
+        wav=self.wav_layer5_maxpool(wav)
+        wav=self.avgpool(wav)
+        egg=self.wav_layer5(egg)
+        egg=self.wav_layer5_maxpool(egg)
+        egg=self.avgpool(egg)        
+        
 
-        out = out.view(out.size(0), -1)
-        out = self.res_classifier(out)
-
+        wav = wav.view(wav.size(0), -1)
+        wav = self.wav_res_classifier(wav)
+        egg = egg.view(egg.size(0), -1)
+        egg = self.egg_res_classifier(egg)
+        
+        out = torch.cat([wav,egg],dim=1)
         out = self.concated_fc(out)
+        
+        return out
+
+
+
+class Vgg_16_wav_mmtm_gap(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+        #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
+        super(Vgg_16_wav_mmtm_gap, self).__init__()
+        # if "center=True" of stft, padding = win_len / 2
+        self.mmtm1 = MMTM_max(64,64,4)
+        self.mmtm2 = MMTM_max(128,128,4)      
+        self.mmtm3 = MMTM_max(256,256,4)     
+        self.mmtm4 = MMTM_max(512,512,4) 
+        #self.num_ftrs = 63
+        num_ftrs = 1000
+        self.vgg_list = []
+        self.vgg_list.append(models.vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs)) # 0 : wav
+        self.vgg_list.append(models.vgg16_bn(weights=VGG16_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs)) # 1 : egg
+        #self.num_ftrs = self.model.fc.out_features
+        self.vgg_list = nn.ModuleList(self.vgg_list) # 모듈임을 알려주기
+        self.num_ftrs = num_ftrs
+        #import pdb;pdb.set_trace()
+        # self.wav_layer1=None;self.wav_layer1_maxpool=None;self.wav_layer2=None;self.wav_layer2_maxpool=None
+        # self.wav_layer3=None;self.wav_layer3_maxpool=None;self.wav_layer4=None;self.wav_layer4_maxpool=None
+        # self.wav_layer5=None;self.wav_layer5_maxpool=None;avgpool = None 
+  
+        self.wav_layer1,self.wav_layer1_maxpool,self.wav_layer2,self.wav_layer2_maxpool,\
+        self.wav_layer3,self.wav_layer3_maxpool,self.wav_layer4,self.wav_layer4_maxpool,\
+        self.wav_layer5,self.wav_layer5_maxpool,self.avgpool = self.make_layer(0)
+
+        # self.egg_layer1=None;self.egg_layer1_maxpool=None;self.egg_layer2=None;self.egg_layer2_maxpool=None
+        # self.egg_layer3=None;self.egg_layer3_maxpool=None;self.egg_layer4=None;self.egg_layer4_maxpool=None
+        # self.egg_layer5=None;self.egg_layer5_maxpool=None;avgpool = None
+
+        self.egg_layer1,self.egg_layer1_maxpool,self.egg_layer2,self.egg_layer2_maxpool,\
+        self.egg_layer3,self.egg_layer3_maxpool,self.egg_layer4,self.egg_layer4_maxpool,\
+        self.egg_layer5,self.egg_layer5_maxpool,self.avgpool = self.make_layer(1)
+
+
+        wav_fc = nn.Sequential(       
+            nn.Linear(self.num_ftrs, 512),
+                            nn.BatchNorm1d(512),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5)                         
+                            )
+        self.wav_res_classifier = nn.Sequential(*list(self.vgg_list[0].classifier) + [wav_fc])
+        egg_fc = nn.Sequential(       
+            nn.Linear(self.num_ftrs, 512),
+                            nn.BatchNorm1d(512),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5)                         
+                            )
+        self.egg_res_classifier = nn.Sequential(*list(self.vgg_list[1].classifier) + [egg_fc])        
+
+        
+        self.concated_fc= nn.Sequential(
+            nn.Linear(512*2,128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(128,64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(64,2)
+        )
+
+
+        self.power_to_db = T.AmplitudeToDB(stype="power", top_db=80)
+
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+
+        stretch_factor=0.8
+        self.spec_aug = torch.nn.Sequential(
+            #T.TimeStretch(stretch_factor, fixed_rate=True),
+            T.FrequencyMasking(freq_mask_param=80),
+            T.TimeMasking(time_mask_param=40),
+        )
+        
+    def make_layer(self,network_num):
+        # network 번호를 받아서 새로운 네트워크를 만들지 고민중.
+        layer1=self.vgg_list[network_num].features[:6]
+        layer1_maxpool=self.vgg_list[network_num].features[6]
+        #identity = nn.Identity()
+        #residual = identity(layer1_maxpool)
+
+        layer2=self.vgg_list[network_num].features[7:13]
+        layer2_maxpool=self.vgg_list[network_num].features[13]
+
+        layer3=self.vgg_list[network_num].features[14:23]
+        layer3_maxpool=self.vgg_list[network_num].features[23] 
+
+
+        layer4=self.vgg_list[network_num].features[24:33]
+        layer4_maxpool=self.vgg_list[network_num].features[33]
+
+
+        layer5=self.vgg_list[network_num].features[34:43]
+        layer5_maxpool=self.vgg_list[network_num].features[43]
+
+        avgpool = nn.AdaptiveAvgPool2d((7, 7))        
+        return layer1,layer1_maxpool,layer2,layer2_maxpool,layer3,layer3_maxpool,layer4,layer4_maxpool,layer5,layer5_maxpool,avgpool
+
+    #@classmethod
+    def sample_min_max(batch):
+        batch_size,height,width = batch.size(0),batch.size(1),batch.size(2)
+        batch = batch.contiguous().view(batch.size(0), -1)
+        batch -= batch.min(1, keepdim=True)[0]
+        batch /= batch.max(1, keepdim=True)[0]
+        batch = batch.view(batch_size, height, width)
+        return batch
+
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+    
+    def take_log(feature):
+        amp2db = torchaudio.transforms.AmplitudeToDB(stype="amplitude")
+        amp2db.amin=1e-5
+        return amp2db(feature).clamp(min=-50,max=80)
+
+    def forward(self, x_list,tsne=False,augment=False):
+        #spec = self.spec(x)
+        #mel = self.mel_spectrogram(x)
+        wav = self.mel_scale(x_list[:,0,...])
+        wav = wav.squeeze(1)
+        wav = torchaudio.functional.amplitude_to_DB(wav,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(wav)) ) 
+        wav = Vgg_16_wav_mmtm.batch_min_max(wav)
+
+        egg = self.mel_scale(x_list[:,1,...])
+        egg = egg.squeeze(1)
+        egg = torchaudio.functional.amplitude_to_DB(egg,amin=1e-10,top_db=80,multiplier=10,db_multiplier=torch.log10(torch.max(egg)) )
+        egg = Vgg_16_wav_mmtm.batch_min_max(egg)
+        
+        wav = torch.stack([wav,wav,wav],axis=1)
+        egg = torch.stack([egg,egg,egg],axis=1)
+        #print(out.size())
+
+        wav=self.wav_layer1(wav)
+        wav=self.wav_layer1_maxpool(wav)
+        egg=self.egg_layer1(egg)
+        egg=self.egg_layer1_maxpool(egg)        
+        wav,egg=self.mmtm1(wav,egg)
+        
+        wav=self.wav_layer2(wav)
+        wav=self.wav_layer2_maxpool(wav)
+        egg=self.egg_layer2(egg)
+        egg=self.egg_layer2_maxpool(egg)
+        wav,egg=self.mmtm2(wav,egg)
+
+        wav=self.wav_layer3(wav)
+        wav=self.wav_layer3_maxpool(wav)
+        egg=self.egg_layer3(egg)
+        egg=self.egg_layer3_maxpool(egg)
+        wav,egg=self.mmtm3(wav,egg) 
+        
+
+        wav=self.wav_layer4(wav)
+        wav=self.wav_layer4_maxpool(wav)
+        egg=self.egg_layer4(egg)
+        egg=self.egg_layer4_maxpool(egg)
+        wav,egg=self.mmtm4(wav,egg) 
+
+        wav=self.wav_layer5(wav)
+        wav=self.wav_layer5_maxpool(wav)
+        wav=self.avgpool(wav)
+        egg=self.wav_layer5(egg)
+        egg=self.wav_layer5_maxpool(egg)
+        egg=self.avgpool(egg)        
+        
+
+        wav = wav.view(wav.size(0), -1)
+        wav = self.wav_res_classifier(wav)
+        egg = egg.view(egg.size(0), -1)
+        egg = self.egg_res_classifier(egg)
+        
+        out = torch.cat([wav,egg],dim=1)
+        out = self.concated_fc(out)
+        
         return out
 
 
@@ -3635,6 +3870,11 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
                                          win_len=mel_run_config['win_length'],
                                          n_fft=mel_run_config["n_fft"],
                                          hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_vgg16_phrase_eggfusion_mmtm':
+        model = Vgg_16_wav_mmtm(mel_bins=mel_run_config['n_mels'],
+                                         win_len=mel_run_config['win_length'],
+                                         n_fft=mel_run_config["n_fft"],
+                                         hop_len=mel_run_config['hop_length']).cuda()
     elif model_name=='wav_res_phrase_eggfusion_mmtm_bam':
         model = ResLayer_wav_fusion_mmtm_bam(mel_bins=mel_run_config['n_mels'],
                                          win_len=mel_run_config['win_length'],
@@ -3721,3 +3961,15 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         model = mixnet_l(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     
     return model
+
+
+
+if __name__ == '__main__':
+    print("test")
+    wav=torch.randn(2, 1, 25000)
+    egg=torch.randn(2, 1, 25000)
+    
+    x_list = [wav,egg]
+    x_list = torch.stack(x_list, dim=1)
+    model=Vgg_16_wav_mmtm()
+    print(model(x_list))
