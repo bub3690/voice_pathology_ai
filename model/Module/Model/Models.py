@@ -2723,6 +2723,8 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         egg = torch.flatten(egg, 1)
         
         if tsne:
+            # 여기서 문제가 발생?
+            # fc없이 
             return torch.cat([wav,egg],axis=1)
         wav = self.wav_model.fc(wav)# 512        
         egg = self.egg_model.fc(egg)# 512        
