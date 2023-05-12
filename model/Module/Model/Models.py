@@ -2636,9 +2636,13 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         )
                 
         #self.fc = nn.Linear(2, 2),
-        self.fc = nn.Sequential(       
+        self.fc1 = nn.Sequential(
                             nn.Linear(self.num_ftrs*2, self.num_ftrs),
                             nn.BatchNorm1d(self.num_ftrs),
+        )
+        
+        
+        self.fc2 = nn.Sequential(       
                             nn.ReLU(),
                             nn.Dropout(p=0.5),
                             nn.Linear(self.num_ftrs,128),
@@ -2725,15 +2729,17 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         wav = torch.flatten(wav, 1)
         egg = torch.flatten(egg, 1)
         
+
+        # wav = self.wav_model.fc(wav)# 512        
+        # egg = self.egg_model.fc(egg)# 512        
+
+        x = torch.cat([wav,egg],axis=1)
+        x = self.fc1(x)
         if tsne:
             # 여기서 문제가 발생?
             # fc없이 
-            return torch.cat([wav,egg],axis=1)
-        wav = self.wav_model.fc(wav)# 512        
-        egg = self.egg_model.fc(egg)# 512        
-
-        x = torch.cat([wav,egg],axis=1)
-        x = self.fc(x)
+            return x    
+        x = self.fc2(x)
         return x
 
 
