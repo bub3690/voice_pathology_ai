@@ -2605,7 +2605,10 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         self.mmtm1 = MMTM(64,64,4)
         self.mmtm2 = MMTM(128,128,4)      
         self.mmtm3 = MMTM(256,256,4)     
-        self.mmtm4 = MMTM(512,512,4)  
+        self.mmtm4 = MMTM(512,512,4)
+        
+        self.wav_model.fc = nn.Sequential()
+        self.egg_model.fc = nn.Sequential()
 
         # self.wav_model = MyResNet18()
         # # if you need pretrained weights
@@ -2614,7 +2617,7 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         # # if you need pretrained weights
         # self.egg_model.load_state_dict(models.resnet18(pretrained=True).state_dict())
 
-        self.num_ftrs = self.wav_model.fc.out_features
+        self.num_ftrs = 512 # global feature
                             
         self.mel_scale = T.MelSpectrogram(
             sample_rate=16000,
