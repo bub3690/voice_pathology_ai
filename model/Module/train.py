@@ -96,6 +96,8 @@ def main():
                             help='write custom model for wandb')
     parser.add_argument('--normalize',type=bool,default=False,
                         help='true or false to get std normalize')
+    parser.add_argument('--postscaler',type=bool,default=False,
+                        help='scaling after dnn')
     parser.add_argument('--feature-normalize',type=bool,default=False,
                         help='true or false to get std normalize')
     parser.add_argument('--project-name',type=str, default='SVD-voice-disorder',
@@ -438,7 +440,7 @@ def main():
                     for img,handcrafted,label,paths,_ in tqdm(train_loader):
                         #code numpy concat handcrafted,model(img)
                         
-                        train_result.append( np.concatenate([model(img.to(DEVICE),tsne=True).cpu().numpy(), handcrafted.numpy()],axis=1) )
+                        train_result.append( np.concatenate([handcrafted.numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
                         
                         train_labels += label.tolist()
                         train_paths.append(paths)
@@ -453,7 +455,7 @@ def main():
                         valid_paths+=paths
                 else:
                     for img,handcrafted,label,paths,_ in tqdm(valid_loader):
-                        valid_result.append( np.concatenate([model(img.to(DEVICE),tsne=True).cpu().numpy(), handcrafted.cpu().numpy()],axis=1))
+                        valid_result.append( np.concatenate([handcrafted.cpu().numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1))
                         valid_labels+= label.tolist()
                         valid_paths+=paths                    
                 
@@ -471,10 +473,11 @@ def main():
                 #valid_labels = np.concatenate(valid_labels)
 
                 #post scaling
-                # print(train_result.shape)
-                # train_result[:,6373:] = post_scaler.post_scaling(train_result[:,6373:])
-                # pd.DataFrame(train_result).to_csv('./train_result/post_train_result_'+str(data_ind)+'.csv',index=True)
-                # valid_result[:,6373:] = post_scaler.post_scaling_inference(valid_result[:,6373:],fold=data_ind-1)
+                if args.postscaler:
+                    print(train_result.shape)
+                    train_result[:,6373:] = post_scaler.post_scaling(train_result[:,6373:])
+                    pd.DataFrame(train_result).to_csv('./train_result/post_train_result_'+str(data_ind)+'.csv',index=True)
+                    valid_result[:,6373:] = post_scaler.post_scaling_inference(valid_result[:,6373:],fold=data_ind-1)
 
                 
                 # train classifier
@@ -612,7 +615,7 @@ def main():
                         test_paths.append(paths)
                 else:
                     for img,handcrafted,label,paths,_ in tqdm(test_loader):
-                        test_result.append( np.concatenate([model(img.to(DEVICE),tsne=True).cpu().numpy(), handcrafted.numpy()],axis=1) )
+                        test_result.append( np.concatenate([handcrafted.numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
                         test_labels += label.tolist()
                         test_paths.append(paths)                    
                 test_result = np.concatenate(test_result)
