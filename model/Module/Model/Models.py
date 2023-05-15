@@ -2734,12 +2734,12 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         # egg = self.egg_model.fc(egg)# 512        
 
         x = torch.cat([wav,egg],axis=1)
-        x = self.fc1(x)
         if tsne:
             # 여기서 문제가 발생?
-            # fc없이 
+            # fc없이
+            x = torch.nn.functional.normalize(x,p=2,dim=1)
             return x 
-
+        x = self.fc1(x)
         x = self.fc2(x)
         return x
 

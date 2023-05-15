@@ -439,9 +439,7 @@ def main():
                 else:
                     for img,handcrafted,label,paths,_ in tqdm(train_loader):
                         #code numpy concat handcrafted,model(img)
-                        
                         train_result.append( np.concatenate([handcrafted.numpy(),model(img.to(DEVICE),tsne=True).cpu().numpy()],axis=1) )
-                        
                         train_labels += label.tolist()
                         train_paths.append(paths)
                 
