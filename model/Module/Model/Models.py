@@ -2738,7 +2738,7 @@ class ResLayer_wav_fusion_mmtm(nn.Module):
         if tsne:
             # 여기서 문제가 발생?
             # fc없이 
-            return x    
+            return x 
 
         x = self.fc2(x)
         return x

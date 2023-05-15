@@ -391,7 +391,7 @@ def main():
                                             BATCH_SIZE,
                                             spectro_run_config,
                                             mel_run_config,
-                                            mfcc_run_config,    
+                                            mfcc_run_config,
                                             args.normalize,
                                             norm_mean_list,
                                             norm_std_list,
@@ -622,7 +622,8 @@ def main():
                 #test_labels = np.concatenate(test_labels)
                 test_paths = np.concatenate(test_paths)
                 
-                # test_result[:,6373:] = post_scaler.post_scaling_inference(test_result[:,6373:],fold=data_ind-1) 
+                if args.postscaler:
+                    test_result[:,6373:] = post_scaler.post_scaling_inference(test_result[:,6373:],fold=data_ind-1) 
                 
                 if args.feature_selection:
                     test_result = feature_selector.feature_selection_inference(test_result,fold=data_ind-1,k=args.num_features)
