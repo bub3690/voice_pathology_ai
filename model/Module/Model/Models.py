@@ -105,9 +105,24 @@ class Resnet_wav(nn.Module):
         # if "center=True" of stft, padding = win_len / 2
 
         #self.num_ftrs = 63
+        
+        self.res = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).cuda()
+        #self.num_ftrs = self.model.fc.out_features
+        self.num_ftrs = self.res.fc.in_features
+        
+        self.res.fc = nn.Sequential()
 
-        self.res = ResLayer()
-
+        self.fc = nn.Sequential(       
+            nn.Linear(self.num_ftrs, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                            )
 
         # self.spec = T.Spectrogram(n_fft=win_len,hop_length=hop_len,power=2)
 
@@ -172,7 +187,7 @@ class Resnet_wav(nn.Module):
         return amp2db(feature).clamp(min=-50,max=80)
     
 
-    def forward(self, x,augment=False):
+    def forward(self, x,tsne=False,augment=False):
         #spec = self.spec(x)
         #mel = self.mel_spectrogram(x)
         mel = self.mel_scale(x)
@@ -196,7 +211,12 @@ class Resnet_wav(nn.Module):
         out = torch.stack([mel,mel,mel],axis=1)
         #print(out.size())
         out=self.res(out)
+        if tsne:
+            out = torch.nn.functional.normalize(out,p=2,dim=1)            
+            return out
+        out = self.fc(out)
         return out
+
 
 class Resnet_wav_smile(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
@@ -730,6 +750,9 @@ class vgg_16_wav_gap(nn.Module):
         #scaler
 
         if tsne:
+            # normalize 추가. 성능이 안좋아서 미사용
+            # l2 normalize to out
+            # out = F.normalize(out, p=2, dim=1)
             return out
         out = self.fc_layer(out)
 
@@ -886,7 +909,7 @@ class vgg_16_wav_smile2(nn.Module):
         out = torch.concat([out,handcrafted],axis=1)
         out = self.concated_fc1(out)
         if tsne:
-            return  
+            return out
         out = self.middle_relu(out)
         out = self.concated_fc2(out)
         return out

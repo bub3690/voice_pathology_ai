@@ -1,0 +1,5 @@
+python train.py --wandb True --batch-size 16 --model wav_res --dataset phrase --tag res18 wav phrase organics --seed 1004 --data-subset 1 --workers 20 --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res --dataset phrase --tag res18 wav phrase organics --seed 1005 --data-subset 1 --workers 20 --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res --dataset phrase --tag res18 wav phrase organics --seed 1006 --data-subset 1 --workers 20 --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res --dataset phrase --tag res18 wav phrase organics --seed 1007 --data-subset 1 --workers 20 --descript "wav phrase vgg16 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_res --dataset phrase --tag res18 wav phrase organics --seed 1008 --data-subset 1 --workers 20 --descript "wav phrase vgg16 speaker independent"
