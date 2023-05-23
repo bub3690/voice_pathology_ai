@@ -459,6 +459,10 @@ def main():
                 
                 train_result = np.concatenate(train_result)
                 
+                
+                size_of_handcrafted = handcrafted.shape[1] # smile : 6373
+                
+                
                 # use pandas train_result to {fold}.csv
                 pd.DataFrame(train_result).to_csv('./train_result/train_result_'+str(data_ind)+'.csv',index=True)
                 
@@ -473,9 +477,9 @@ def main():
                 #post scaling
                 if args.postscaler:
                     print(train_result.shape)
-                    train_result[:,6373:] = post_scaler.post_scaling(train_result[:,6373:])
+                    train_result[:,size_of_handcrafted:] = post_scaler.post_scaling(train_result[:,size_of_handcrafted:])
                     pd.DataFrame(train_result).to_csv('./train_result/post_train_result_'+str(data_ind)+'.csv',index=True)
-                    valid_result[:,6373:] = post_scaler.post_scaling_inference(valid_result[:,6373:],fold=data_ind-1)
+                    valid_result[:,size_of_handcrafted:] = post_scaler.post_scaling_inference(valid_result[:,size_of_handcrafted:],fold=data_ind-1)
 
                 
                 # train classifier

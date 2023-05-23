@@ -687,6 +687,148 @@ class svd_dataset_wav_smile(Dataset):
 
 
 
+class svd_dataset_wav_hindawi_handcrafted(Dataset):
+    """
+    paper : Comparative Analysis of CNN and RNN for Voice Pathology Detection
+    wav만 취득하기.
+    
+    """
+    def __init__(self,
+                data_path_list,
+                y_label_list,
+                classes,
+                mel_params,
+                dataset='phrase',
+                transform=None,
+                is_train=False,):
+
+        #클래스에서 사용할 인자를 받아 인스턴스 변수로 저장하는 일을 한다.
+        #예를들면, 이미지의 경로 리스트를 저장하는 일을 하게 된다.
+        
+        #data_num : k 개 데이터 셋 중 어떤것을 쓸지
+        #test인지 아닌지.
+        
+        self.path_list = data_path_list
+        self.label = y_label_list # label data
+        self.classes=classes
+        self.transform=transform
+
+        self.is_train = is_train
+
+        # sweep params
+        self.mel_params = mel_params
+        #sr,n_mfcc,lifter, hop_length , win_length , n_mels , n_fft , f_max , batch_size        
+
+        self.dataset=dataset
+        #noramlize 관련
+          
+        
+
+    # Extract Rolloff
+    def extract_rolloff(audio_file,sr):
+        rolloff = librosa.feature.spectral_rolloff(y=audio_file, sr=sr).squeeze(axis=0)
+        return rolloff
+
+    # Extract ZCR (Zero-Crossing Rate)
+    def extract_zcr(audio_file,sr):
+        zcr = librosa.feature.zero_crossing_rate(audio_file).squeeze(axis=0)
+        return zcr
+
+
+    def extract_energy_entropy(audio_file,sr):
+        # Load the audio signal
+        # 음성 신호에서 에너지를 계산합니다.
+        energy = np.sum(audio_file ** 2)
+
+        # 에너지 분포의 불확실성의 척도로 에너지 엔트로피를 계산합니다.
+        entropy = -np.sum(energy * np.log2(energy))
+
+        return entropy
+
+    # 6. Extract Spectral Flux
+    def extract_spectral_flux(audio_file,sr):
+        spectral_flux = librosa.onset.onset_strength(y=audio_file, sr=sr)
+        return spectral_flux
+
+    # 7. Extract Spectral Centroid
+    def extract_spectral_centroid(audio_file,sr):
+        spectral_centroid = librosa.feature.spectral_centroid(y=audio_file, sr=sr).squeeze(axis=0)
+        return spectral_centroid
+
+    # 8. Extract Energy
+    def extract_energy(audio_file,sr):
+        energy = librosa.feature.rms(y=audio_file).squeeze(axis=0)
+        return energy
+
+    def __len__(self):
+        return len(self.path_list)
+        #데이터 셋의 길이를 정수로 반환한다.
+        # 
+        # 
+    
+    def __getitem__(self, idx):
+        """
+        WAV 파일을 읽어서, MODEL에 전달.
+        """
+        sig = PhraseData.phrase_dict[ str(self.path_list[idx])+'-'+self.dataset+'.wav' ] 
+        #sig = preemphasis(sig)
+        
+        origin_length = sig.shape[0]
+        
+        if sig.shape[0] > self.mel_params["sr"]*3:
+            origin_length = self.mel_params["sr"]*3
+        
+        origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
+        #print(sig.shape)
+        # sig = np.tile(sig,(2,))
+
+        length = self.mel_params["sr"]*3 #sample rate *2 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
+        
+        
+        #spectral_envelope = svd_dataset_wav_handcrafted.get_spectral_envelope(sig,self.mel_params["sr"]) #40개
+        f0 = librosa.yin(sig, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), frame_length=1024, hop_length=512)
+        f0 = statistical_feature(f0)
+        rolloff = svd_dataset_wav_hindawi_handcrafted.extract_rolloff(sig,self.mel_params["sr"])
+        rolloff = statistical_feature(rolloff)
+        zcr = svd_dataset_wav_hindawi_handcrafted.extract_zcr(sig,self.mel_params["sr"])
+        zcr = statistical_feature(zcr)
+        energy_entropy = svd_dataset_wav_hindawi_handcrafted.extract_energy_entropy(sig,self.mel_params["sr"])
+        spectral_flux = svd_dataset_wav_hindawi_handcrafted.extract_spectral_flux(sig,self.mel_params["sr"])
+        spectral_flux = statistical_feature(spectral_flux)
+        spectral_centroid = svd_dataset_wav_hindawi_handcrafted.extract_spectral_centroid(sig,self.mel_params["sr"])
+        spectral_centroid = statistical_feature(spectral_centroid)
+        energy = svd_dataset_wav_hindawi_handcrafted.extract_energy(sig,self.mel_params["sr"])
+        energy = statistical_feature(energy)
+        # print('rolloff',rolloff)
+        # print('zcr',zcr)
+        # print('energy_entropy',energy_entropy)
+        # print('spectral_flux',spectral_flux)
+        # print('spectral_centroid',spectral_centroid)
+        # print('energy',energy)
+        
+        
+
+        handcrafted = np.hstack((f0,rolloff,zcr,energy_entropy,spectral_flux,spectral_centroid,energy))
+        # mfcc도 추가해서 넣기.
+
+        pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
+        sig = pad1d(sig,length)
+        
+        ###signal norm
+        sig = (sig-sig.mean())/sig.std()
+        ###
+
+        sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
+        sig=sig.unsqueeze(0)
+        #import pdb;pdb.set_trace()
+        handcrafted = torch.from_numpy(handcrafted).type(torch.float32)# 타입 변화
+        # mfcc 는 후에 추가.
+        
+        return sig,handcrafted, self.classes.index(self.label[idx]), str(self.path_list[idx]), origin_length
+
+
+
+
 class svd_dataset_wav_handcrafted(Dataset):
     """
     paper : Multi-modal voice pathology detection architecture based on deep and handcrafted feature fusion.
@@ -721,6 +863,26 @@ class svd_dataset_wav_handcrafted(Dataset):
 
         self.dataset=dataset
         #noramlize 관련
+        
+        self.mfcc_scale = T.MFCC(
+            sample_rate=16000,
+            n_mfcc=30,
+            melkwargs={
+                "n_fft":self.mel_params["n_fft"],
+                "win_length":self.mel_params["win_length"],
+                "hop_length":self.mel_params["hop_length"],
+                "n_mels":self.mel_params["n_mels"],
+                "f_min":130,
+                "f_max":6800,
+                "center":True,
+                "pad_mode":"constant",
+                "power":2.0,
+                "norm":"slaney",
+                "mel_scale":"slaney",
+                "window_fn":torch.hann_window
+            }
+        )        
+        
 
 
     def __len__(self):
@@ -766,9 +928,10 @@ class svd_dataset_wav_handcrafted(Dataset):
         f0 = librosa.yin(sig, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), frame_length=1024, hop_length=512)
         f0 = statistical_feature(f0)
         #spectral envelope 오류나니까 빼고 실험 완성하기.
+        
 
         handcrafted = np.hstack((lpc,f0))
-
+        # mfcc도 추가해서 넣기.
 
         pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
         sig = pad1d(sig,length)
@@ -778,9 +941,12 @@ class svd_dataset_wav_handcrafted(Dataset):
         ###
 
         sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
-        handcrafted=torch.from_numpy(handcrafted).type(torch.float32)# 타입 변화
-        
         sig=sig.unsqueeze(0)
+        #import pdb;pdb.set_trace()
+        mfcc = self.mfcc_scale(sig).squeeze(0).flatten()
+        handcrafted = torch.from_numpy(handcrafted).type(torch.float32)# 타입 변화
+        handcrafted = torch.concat((handcrafted,mfcc),dim=0)
+        # mfcc 는 후에 추가.
         
         return sig,handcrafted, self.classes.index(self.label[idx]), str(self.path_list[idx]), origin_length
 
@@ -1142,6 +1308,25 @@ class svd_dataset_wav_eggfusion_handcrafted(Dataset):
 
         self.dataset=dataset
         #noramlize 관련
+        
+        self.mfcc_scale = T.MFCC(
+            sample_rate=16000,
+            n_mfcc=30,
+            melkwargs={
+                "n_fft":self.mel_params["n_fft"],
+                "win_length":self.mel_params["win_length"],
+                "hop_length":self.mel_params["hop_length"],
+                "n_mels":self.mel_params["n_mels"],
+                "f_min":130,
+                "f_max":6800,
+                "center":True,
+                "pad_mode":"constant",
+                "power":2.0,
+                "norm":"slaney",
+                "mel_scale":"slaney",
+                "window_fn":torch.hann_window
+            }
+        )               
 
         #augmentation들
         # self.crop = None
@@ -1171,6 +1356,7 @@ class svd_dataset_wav_eggfusion_handcrafted(Dataset):
         WAV,EGG 파일을 읽어서, MODEL에 전달.
         """
         sig_tensor = []
+        handcrafted_tensor = []
         for wav_dict in FusionData.dict_list:
             sample=list(wav_dict.keys())[0]
             if len(sample.split('-'))<=2:
@@ -1192,6 +1378,11 @@ class svd_dataset_wav_eggfusion_handcrafted(Dataset):
             
             origin_frame_size = 1 + int(np.floor(origin_length//self.mel_params["hop_length"]))
             
+            lpc = librosa.lpc(sig, order=30) # 30개
+            f0 = librosa.yin(sig, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), frame_length=1024, hop_length=512)
+            f0 = statistical_feature(f0)      
+            handcrafted = np.hstack((lpc,f0))
+            
             length = self.mel_params["sr"]*3 #sample rate *3 padding을 위한 파라미터 (하이퍼 파라미터로인해 사이즈는 계속 바뀐다.)
             pad1d = lambda a, i: a[0:i] if a.shape[0] > i else np.hstack((a, np.zeros((i-a.shape[0]))))        
             sig = pad1d(sig,length)
@@ -1202,11 +1393,17 @@ class svd_dataset_wav_eggfusion_handcrafted(Dataset):
 
             sig=torch.from_numpy(sig).type(torch.float32)# 타입 변화
             sig=sig.unsqueeze(0)
-
+            
+            mfcc = self.mfcc_scale(sig).squeeze(0).flatten()
+            handcrafted = torch.from_numpy(handcrafted).type(torch.float32)# 타입 변화
+            handcrafted = torch.concat((handcrafted,mfcc),dim=0)            
+            
+            handcrafted_tensor.append(handcrafted)
             sig_tensor.append(sig)
         sig_tensor = torch.stack(sig_tensor)
+        handcrafted_tensor = torch.cat(handcrafted_tensor)
 
-        return sig_tensor, self.classes.index(self.label[idx]), str(self.path_list[idx]),origin_length   
+        return sig_tensor,handcrafted_tensor, self.classes.index(self.label[idx]), str(self.path_list[idx]),origin_length   
 
 
 
@@ -2244,7 +2441,61 @@ def load_data(
                                                 num_workers=num_workers
                                                 #worker_init_fn=seed_worker
                                                 )        
-        
+    elif model=='wav_vgg19_stft':
+        train_loader = DataLoader(dataset = svd_dataset_wav(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )#svd_dataset_wav_smile
+    elif model=='wav_resnet34_handcrafted_hindawi':
+        train_loader = DataLoader(dataset = svd_dataset_wav_hindawi_handcrafted(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+
+        validation_loader = DataLoader(dataset = svd_dataset_wav_hindawi_handcrafted(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )#svd_dataset_wav_smile        
     elif model=='wav_vgg16_smile':
         train_loader = DataLoader(dataset = svd_dataset_wav_smile(
                                                     X_train_list,
@@ -2364,7 +2615,61 @@ def load_data(
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
+                                                )
+    elif model=='wav_bialexnet_phrase_eggfusion':
+        train_loader = DataLoader(dataset = svd_dataset_wav_eggfusion(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav_eggfusion(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
                                                 )        
+    elif model=='wav_alexnet_stft_handcrafted':
+        train_loader = DataLoader(dataset = svd_dataset_wav_eggfusion_handcrafted(
+                                                    X_train_list,
+                                                    Y_train_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    is_train = True,
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+        validation_loader = DataLoader(dataset = 
+                                                svd_dataset_wav_eggfusion_handcrafted(
+                                                    X_valid_list,
+                                                    Y_valid_list,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                )            
     elif model=='wav_res_phrase_eggfusion_mmtm':
         train_loader = DataLoader(dataset = svd_dataset_wav_eggfusion(
                                                     X_train_list,
@@ -2952,7 +3257,47 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 shuffle = True,
                                                 num_workers=num_workers
                                                 #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.     
+    elif model=='wav_vgg19_stft':
+        test_loader = DataLoader(dataset = svd_dataset_wav(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
+    elif model=='wav_resnet34_handcrafted_hindawi':
+        test_loader = DataLoader(dataset = svd_dataset_wav_hindawi_handcrafted(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
                                                 ) # 순서가 암기되는것을 막기위해.        
+    elif model=='wav_alexnet_stft_handcrafted':
+        #실제 쓰이는 모델이 아닌, dataloader용
+        test_loader = DataLoader(dataset = svd_dataset_wav_eggfusion_handcrafted(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.
     elif model=='wav_three_segements':
         test_loader = DataLoader(dataset = svd_dataset_wav_three_segments(
                                                     X_test,
@@ -3006,7 +3351,20 @@ def load_test_data(X_test,Y_test,BATCH_SIZE,spectro_run_config,mel_run_config,mf
                                                 batch_size = BATCH_SIZE,
                                                 shuffle = True,
                                                 #worker_init_fn=seed_worker
-                                                ) # 순서가 암기되는것을 막기위해.svd_dataset_wav_nopad        
+                                                ) # 순서가 암기되는것을 막기위해.svd_dataset_wav_nopad  
+    elif model=='wav_bialexnet_phrase_eggfusion':
+        test_loader = DataLoader(dataset = svd_dataset_wav_eggfusion(
+                                                    X_test,
+                                                    Y_test,
+                                                    classes,
+                                                    mel_params = mel_run_config,
+                                                    transform = transforms.ToTensor(),#이걸 composed로 고쳐서 전처리 하도록 수정.
+                                                    dataset= dataset,
+                                                ),
+                                                batch_size = BATCH_SIZE,
+                                                shuffle = True,
+                                                #worker_init_fn=seed_worker
+                                                ) # 순서가 암기되는것을 막기위해.svd_dataset_wav_nopad                
     elif model=='wav_res_phrase_eggfusion_mmtm':
         test_loader = DataLoader(dataset = svd_dataset_wav_eggfusion(
                                                     X_test,

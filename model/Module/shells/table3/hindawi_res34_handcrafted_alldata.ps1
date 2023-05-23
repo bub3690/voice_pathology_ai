@@ -1,0 +1,5 @@
+python train.py --wandb True --batch-size 16 --model wav_resnet34_handcrafted_hindawi --dataset phrase --tag  res34 wav phrase handcrafted organics --seed 1004 --data-subset 0 --descript "wav phrase vgg19 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_resnet34_handcrafted_hindawi --dataset phrase --tag  res34 wav phrase handcrafted organics --seed 1005 --data-subset 0 --descript "wav phrase vgg19 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_resnet34_handcrafted_hindawi --dataset phrase --tag  res34 wav phrase handcrafted organics --seed 1006 --data-subset 0 --descript "wav phrase vgg19 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_resnet34_handcrafted_hindawi --dataset phrase --tag  res34 wav phrase handcrafted organics --seed 1007 --data-subset 0 --descript "wav phrase vgg19 speaker independent"
+python train.py --wandb True --batch-size 16 --model wav_resnet34_handcrafted_hindawi --dataset phrase --tag  res34 wav phrase handcrafted organics --seed 1008 --data-subset 0 --descript "wav phrase vgg19 speaker independent"

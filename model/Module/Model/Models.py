@@ -9,7 +9,7 @@ import librosa
 
 
 from torchvision.models import ResNet
-from torchvision.models import ResNet18_Weights,VGG16_BN_Weights,VGG19_BN_Weights,AlexNet_Weights
+from torchvision.models import ResNet18_Weights,ResNet34_Weights,VGG16_BN_Weights,VGG19_BN_Weights,AlexNet_Weights
 
 import timm
 
@@ -356,6 +356,7 @@ class VGG19_wav_handcrafted_fusion(nn.Module):
     """
     paper : Multi-modal voice pathology detection architecture based on deep and handcrafted feature fusion.
     wav만 취득하기.
+    해당 모델은 사용안함. vgg19_gap만 사용할 예정
     
     """    
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
@@ -757,6 +758,97 @@ class vgg_16_wav_gap(nn.Module):
         out = self.fc_layer(out)
 
         return out
+
+
+class vgg_19_wav_gap_stft(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
+        
+        #GAP로 바꿔서 실험해보기.
+
+        #mel_bins=128,win_len=1024,n_fft=1024, hop_len=512
+        super(vgg_19_wav_gap_stft, self).__init__()
+        # if "center=True" of stft, padding = win_len / 2
+
+        #self.num_ftrs = 63
+        num_ftrs = 1000 # 초기화 용
+        self.res = models.vgg19_bn(weights=VGG19_BN_Weights.IMAGENET1K_V1,num_classes=num_ftrs).cuda() 
+        self.res.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.res.classifier = nn.Sequential()
+        num_ftrs = 512
+        
+        
+        self.fc_layer = nn.Sequential(       
+                            nn.Linear(512, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,num_classes)
+                        )
+        
+
+
+        self.power_to_db = T.AmplitudeToDB(stype="power", top_db=80)
+
+        self.stft_scale = T.Spectrogram(
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+        )
+
+        stretch_factor=0.8
+        self.spec_aug = torch.nn.Sequential(
+            #T.TimeStretch(stretch_factor, fixed_rate=True),
+            T.FrequencyMasking(freq_mask_param=80),
+            T.TimeMasking(time_mask_param=40),
+        )
+
+    #@classmethod
+    def sample_min_max(batch):
+        batch_size,height,width = batch.size(0),batch.size(1),batch.size(2)
+        batch = batch.contiguous().view(batch.size(0), -1)
+        batch -= batch.min(1, keepdim=True)[0]
+        batch /= batch.max(1, keepdim=True)[0]
+        batch = batch.view(batch_size, height, width)
+        return batch
+
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+    
+    def take_log(feature):
+        amp2db = torchaudio.transforms.AmplitudeToDB(stype="amplitude")
+        amp2db.amin=1e-5
+        return amp2db(feature).clamp(min=-50,max=80)
+    
+
+    def forward(self, x,tsne=False,augment=False):
+        #spec = self.spec(x)
+        #mel = self.mel_spectrogram(x)
+
+        stft = self.stft_scale(x)
+        stft = torch.log10(stft + 1e-6) # log_stft
+        stft = torch.squeeze(stft,dim=1)[:,:229,:]
+        #mfcc = self.mfcc_scale(x).squeeze(1).mean(axis=2)
+        out = torch.stack([stft,stft,stft],axis=1)
+        out = self.res(out)
+        #scaler
+
+        if tsne:
+            # normalize 추가. 성능이 안좋아서 미사용
+            # l2 normalize to out
+            # out = F.normalize(out, p=2, dim=1)
+            return out
+        out = self.fc_layer(out)
+
+        return out
+
 
 class vgg_16_wav_smile2(nn.Module):
     def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512,num_classes=2):
@@ -2369,6 +2461,166 @@ class Resnet_wav_logspectro(nn.Module):
         out=self.res(out)
         return out
 
+class Resnet34_wav_hindawi(nn.Module):
+    def __init__(self, mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(Resnet34_wav_hindawi, self).__init__()
+        # if "center=True" of stft, padding = win_len / 2
+
+        #self.num_ftrs = 63
+
+        self.res = models.resnet34(weights=ResNet34_Weights.IMAGENET1K_V1).cuda()
+        #self.num_ftrs = self.model.fc.out_features
+        self.num_ftrs = self.res.fc.in_features
+        
+        self.res.fc = nn.Sequential()
+
+        number_of_handcrafted = 67  
+        
+        self.fc = nn.Sequential(       
+            nn.Linear(self.num_ftrs + number_of_handcrafted, 64),
+                            nn.BatchNorm1d(64),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(64,50),
+                            nn.BatchNorm1d(50),
+                            nn.ReLU(),
+                            nn.Dropout(p=0.5),
+                            nn.Linear(50,2)
+                            )
+
+        self.power_to_db = T.AmplitudeToDB(stype="power", top_db=80)
+        
+        self.mfcc_scale = T.MFCC(
+            sample_rate=16000,
+            n_mfcc=13,
+            melkwargs={
+                "n_fft":n_fft,
+                "win_length":win_len,
+                "hop_length":hop_len,
+                "n_mels":mel_bins,
+                "f_min":130,
+                "f_max":6800,
+                "center":True,
+                "pad_mode":"constant",
+                "power":2.0,
+                "norm":"slaney",
+                "mel_scale":"slaney",
+                "window_fn":torch.hann_window
+            }
+        )
+
+        self.mel_scale = T.MelSpectrogram(
+            sample_rate=16000,
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            n_mels=mel_bins,
+            f_min=0,
+            f_max=8000,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+            norm="slaney",
+            mel_scale="slaney",
+            window_fn=torch.hann_window
+        )
+
+
+        # self.spec = T.Spectrogram(n_fft=win_len,hop_length=hop_len,power=2)
+
+        # self.mel_scale = T.MelScale(
+        #     n_mels=mel_bins, sample_rate=16000, n_stft=win_len // 2 + 1
+        #     )
+
+        self.power_to_db = T.AmplitudeToDB(stype="power", top_db=80)
+
+
+        # stretch_factor=0.8
+        # self.spec_aug = torch.nn.Sequential(
+        #     T.TimeStretch(stretch_factor, fixed_rate=True),
+        #     T.FrequencyMasking(freq_mask_param=80),
+        #     T.TimeMasking(time_mask_param=40),
+        # )        
+
+    def forward(self, x,handcrafted):
+        #spec = self.spec(x)
+        #mel = self.mel_spectrogram(x)
+        mel = self.mfcc_scale(x)
+        mel = torch.squeeze(mel,dim=1)
+
+        out = torch.stack([mel,mel,mel],axis=1)
+        #print(out.size())
+        out=self.res(out)
+        
+        out=torch.concat([out,handcrafted],axis=1)
+        out=self.fc(out)
+        return out
+
+
+
+class Alexnet_wav_fusion(nn.Module):
+    """
+    논문 : Multi-modal voice pathology detection architecture based on deep and handcrafted feature fusion.
+    """
+    def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
+        super(Alexnet_wav_fusion, self).__init__()
+        self.wav_model = models.alexnet(weights=AlexNet_Weights.IMAGENET1K_V1).cuda() 
+        self.egg_model = models.alexnet(weights=AlexNet_Weights.IMAGENET1K_V1).cuda()
+        self.num_ftrs = self.wav_model.classifier[-1].out_features
+        #self.tsne = tsne
+        self.stft_scale = T.Spectrogram(
+            n_fft=n_fft,
+            win_length=win_len,
+            hop_length=hop_len,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+        )
+                
+        #self.fc = nn.Linear(2, 2),
+        self.fc = nn.Sequential(       
+            nn.Linear(self.num_ftrs*2, 64),
+                             nn.BatchNorm1d(64),
+                             nn.ReLU(),
+                             nn.Dropout(p=0.5),
+                             nn.Linear(64,50),
+                             nn.BatchNorm1d(50),
+                             nn.ReLU(),
+                             nn.Dropout(p=0.5),
+                             nn.Linear(50,2)
+                            )
+
+    #@classmethod   
+    def batch_min_max(batch):
+        batch = (batch-batch.min())/(batch.max()-batch.min())
+        return batch
+
+    def forward(self, x_list,tsne=False, augment=False):
+        wav_stft = self.stft_scale(x_list[:,0,...])
+        wav_stft = wav_stft.squeeze(1)
+        wav_stft = torch.log10(wav_stft + 1e-6) # log_stft
+        wav_stft = torch.squeeze(wav_stft,dim=1)[:,:229,:]        
+        
+
+        egg_stft = self.stft_scale(x_list[:,1,...])
+        egg_stft = egg_stft.squeeze(1)
+        egg_stft = torch.log10(egg_stft + 1e-6) # log_stft
+        egg_stft = torch.squeeze(egg_stft,dim=1)[:,:229,:]    
+                
+
+        wav_stft = torch.stack([wav_stft,wav_stft,wav_stft],axis=1)
+        egg_stft = torch.stack([egg_stft,egg_stft,egg_stft],axis=1)
+
+        wav_stft = self.wav_model(wav_stft)
+        egg_stft = self.egg_model(egg_stft)
+        x = torch.concat([wav_stft,egg_stft],axis=1)
+        
+        if tsne:
+            # 여기서 norm이 필요하거나 등 확인 필요.
+            return x
+
+        x  = self.fc(x)
+        return x
 
 class ResLayer_wav_fusion_lstm(nn.Module):
     def __init__(self,mel_bins=128,win_len=1024,n_fft=1024, hop_len=512):
@@ -4029,7 +4281,13 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
     elif model_name=='wav_vgg19_handcrafted':
         model = VGG19_wav_handcrafted_fusion(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
-        #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()    
+        #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()   
+    elif model_name=='wav_resnet34_handcrafted_hindawi':
+        model = Resnet34_wav_hindawi(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()            
+    elif model_name=='wav_vgg19_stft':
+        model = vgg_19_wav_gap_stft(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
+        #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()        
     elif model_name=='wav_vgg16_smile':
         model = vgg_16_wav_smile2(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
         #model = Resnet_wav_temporal(mel_bins=mel_run_config['n_mels'],win_len=mel_run_config['win_length'],n_fft=mel_run_config["n_fft"],hop_len=mel_run_config['hop_length']).cuda()
@@ -4042,6 +4300,11 @@ def model_initialize(model_name,spectro_run_config, mel_run_config, mfcc_run_con
                                          win_len=mel_run_config['win_length'],
                                          n_fft=mel_run_config["n_fft"],
                                          hop_len=mel_run_config['hop_length']).cuda()
+    elif model_name=='wav_bialexnet_phrase_eggfusion':
+        model = Alexnet_wav_fusion(mel_bins=mel_run_config['n_mels'],
+                                         win_len=mel_run_config['win_length'],
+                                         n_fft=mel_run_config["n_fft"],
+                                         hop_len=mel_run_config['hop_length']).cuda()         
     elif model_name=='wav_bixception_phrase_eggfusion_lstm':
         model = Xception_wav_fusion_lstm(mel_bins=mel_run_config['n_mels'],
                                          win_len=mel_run_config['win_length'],
